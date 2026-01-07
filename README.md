@@ -436,6 +436,10 @@ CV Bridge
 - [Converting between ROS images and OpenCV images (Python)](https://wiki.ros.org/cv_bridge/Tutorials/ConvertingBetweenROSImagesAndOpenCVImagesPython?utm_source=chatgpt.com)
 - [image_pipeline](https://docs.ros.org/en/rolling/p/image_pipeline/camera_info.html)
 
+Image Compression
+- [ffmpeg_image_transport](https://index.ros.org/p/ffmpeg_image_transport/)
+- [ROS 2のffmpeg_image_transportパッケージを使って効率よく画像トピックを配信、購読する](https://qiita.com/dandelion1124/items/deed014872624fd9a50c)
+
 tf2_ros / TransformBroadcaster（Python）
 - [Writing a broadcaster (Python)](https://docs.ros.org/en/foxy/Tutorials/Intermediate/Tf2/Writing-A-Tf2-Broadcaster-Py.html?utm_source=chatgpt.com)
 - [Writing a tf2 broadcaster (Python)[ROS1]](https://wiki.ros.org/tf2/Tutorials/Writing%20a%20tf2%20broadcaster%20%28Python%29?utm_source=chatgpt.com)
