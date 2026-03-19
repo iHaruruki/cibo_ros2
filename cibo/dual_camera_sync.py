@@ -4,7 +4,7 @@
 
 import rclpy
 from rclpy.node import Node
-from sensor_msgs.msg import Image
+from sensor_msgs.msg import Image, CompressedImage
 from std_msgs.msg import Float32MultiArray
 from cv_bridge import CvBridge
 import cv2
@@ -56,13 +56,15 @@ class UnifiedCameraNode(Node):
             depth=10
         )
 
+        self.get_logger().info("Setting up camera subscribers...")
+        
         # ==== Subscribers ====
-        # FRONTカメラ
-        front_color_sub = Subscriber(self, Image, '/front_camera/color/image_raw', qos_profile=qos_profile)
+        # FRONTカメラ：圧縮カラー + 非圧縮深度
+        front_color_sub = Subscriber(self, CompressedImage, '/front_camera/color/image_raw/compressed', qos_profile=qos_profile)
         front_depth_sub = Subscriber(self, Image, '/front_camera/depth/image_raw', qos_profile=qos_profile)
         
-        # TOPカメラ
-        top_color_sub = Subscriber(self, Image, '/top_camera/color/image_raw', qos_profile=qos_profile)
+        # TOPカメラ：圧縮カラー + 非圧縮深度
+        top_color_sub = Subscriber(self, CompressedImage, '/top_camera/color/image_raw/compressed', qos_profile=qos_profile)
         top_depth_sub = Subscriber(self, Image, '/top_camera/depth/image_raw', qos_profile=qos_profile)
 
         # メッセージ同期
@@ -75,15 +77,15 @@ class UnifiedCameraNode(Node):
 
         # ==== Publishers ====
         self.front_annotated_pub = self.create_publisher(Image, '/front_camera/annotated_image', 10)
-        self.front_overlay_pub = self.create_publisher(Image, '/front_camera/overlay_image', 10)
         self.top_annotated_pub = self.create_publisher(Image, '/top_camera/annotated_image', 10)
-        self.top_overlay_pub = self.create_publisher(Image, '/top_camera/overlay_image', 10)
 
         # ランドマーク出力
         self.front_pose_pub = self.create_publisher(Float32MultiArray, '/front_camera/pose_landmarks', 10)
         self.front_face_pub = self.create_publisher(Float32MultiArray, '/front_camera/face_landmarks', 10)
-        self.top_hand_left_pub = self.create_publisher(Float32MultiArray, '/top_camera/left_hand_landmarks', 10)
-        self.top_hand_right_pub = self.create_publisher(Float32MultiArray, '/top_camera/right_hand_landmarks', 10)
+        self.front_left_hand_pub = self.create_publisher(Float32MultiArray, '/front_camera/left_hand_landmarks', 10)
+        self.front_right_hand_pub = self.create_publisher(Float32MultiArray, '/front_camera/right_hand_landmarks', 10)
+        self.top_left_hand_pub = self.create_publisher(Float32MultiArray, '/top_camera/left_hand_landmarks', 10)
+        self.top_right_hand_pub = self.create_publisher(Float32MultiArray, '/top_camera/right_hand_landmarks', 10)
 
         # ウィンドウ作成
         cv2.namedWindow("FRONT Camera", cv2.WINDOW_NORMAL)
@@ -91,72 +93,73 @@ class UnifiedCameraNode(Node):
         cv2.resizeWindow("FRONT Camera", 640, 480)
         cv2.resizeWindow("TOP Camera", 640, 480)
 
+        self.frame_count = 0
         self.get_logger().info('Unified Camera Node initialized')
+
+    def decompress_color_image(self, compressed_msg):
+        """圧縮カラー画像をデコードする"""
+        try:
+            if len(compressed_msg.data) == 0:
+                return None
+            compressed_data = np.frombuffer(compressed_msg.data, np.uint8)
+            image = cv2.imdecode(compressed_data, cv2.IMREAD_COLOR)
+            return image
+        except Exception as e:
+            self.get_logger().error(f"Error decompressing color image: {e}")
+            return None
 
     def camera_callback(self, front_color_msg, front_depth_msg, top_color_msg, top_depth_msg):
         try:
+            self.frame_count += 1
+
             # ==== FRONT Camera処理 ====
-            front_color = self.bridge.imgmsg_to_cv2(front_color_msg, desired_encoding='bgr8')
-            front_depth = self.bridge.imgmsg_to_cv2(front_depth_msg, desired_encoding='passthrough')
+            front_color = self.decompress_color_image(front_color_msg)
+            if front_color is None:
+                return
 
-            # FRONT: Holistic + Face Mesh処理
-            front_annotated, pose_lm, face_lm = self.process_front_camera(front_color)
+            # Holistic + Face Mesh処理
+            front_annotated, pose_lm, face_lm, front_left_hand, front_right_hand = self.process_front_camera(front_color)
             
-            # 深度の可視化
-            front_depth_normalized = cv2.normalize(front_depth, None, 0, 255, cv2.NORM_MINMAX)
-            front_depth_8bit = cv2.convertScaleAbs(front_depth_normalized)
-            front_depth_colored = cv2.applyColorMap(front_depth_8bit, cv2.COLORMAP_JET)
-
-            # オーバーレイ合成
-            front_overlay = cv2.addWeighted(front_annotated, 0.7, front_depth_colored, 0.3, 0)
-
             # 出力
             self.publish_image(self.front_annotated_pub, front_annotated, front_color_msg)
-            self.publish_image(self.front_overlay_pub, front_overlay, front_color_msg)
             self.publish_landmarks(self.front_pose_pub, pose_lm)
             self.publish_landmarks(self.front_face_pub, face_lm)
+            self.publish_landmarks(self.front_left_hand_pub, front_left_hand)
+            self.publish_landmarks(self.front_right_hand_pub, front_right_hand)
 
             # ==== TOP Camera処理 ====
-            top_color = self.bridge.imgmsg_to_cv2(top_color_msg, desired_encoding='bgr8')
-            top_depth = self.bridge.imgmsg_to_cv2(top_depth_msg, desired_encoding='passthrough')
+            top_color = self.decompress_color_image(top_color_msg)
+            if top_color is None:
+                return
 
-            # TOP: 手検出のみ
-            top_annotated, left_hand, right_hand = self.process_top_camera(top_color)
-
-            # 深度の可視化
-            top_depth_normalized = cv2.normalize(top_depth, None, 0, 255, cv2.NORM_MINMAX)
-            top_depth_8bit = cv2.convertScaleAbs(top_depth_normalized)
-            top_depth_colored = cv2.applyColorMap(top_depth_8bit, cv2.COLORMAP_JET)
-
-            # オーバーレイ合成
-            top_overlay = cv2.addWeighted(top_annotated, 0.7, top_depth_colored, 0.3, 0)
+            # 手検出のみ
+            top_annotated, top_left_hand, top_right_hand = self.process_top_camera(top_color)
 
             # 出力
             self.publish_image(self.top_annotated_pub, top_annotated, top_color_msg)
-            self.publish_image(self.top_overlay_pub, top_overlay, top_color_msg)
-            self.publish_landmarks(self.top_hand_left_pub, left_hand)
-            self.publish_landmarks(self.top_hand_right_pub, right_hand)
+            self.publish_landmarks(self.top_left_hand_pub, top_left_hand)
+            self.publish_landmarks(self.top_right_hand_pub, top_right_hand)
 
             # ==== Display ====
-            cv2.imshow("FRONT Camera", front_overlay)
-            cv2.imshow("TOP Camera", top_overlay)
+            cv2.imshow("FRONT Camera", front_annotated)
+            cv2.imshow("TOP Camera", top_annotated)
 
             key = cv2.waitKey(1) & 0xFF
             if key == ord('q'):
                 cv2.destroyAllWindows()
 
+            if self.frame_count % 60 == 0:
+                self.get_logger().info(f"Processed {self.frame_count} frames")
+
         except Exception as e:
-            self.get_logger().error(f"Error processing camera images: {e}")
+            self.get_logger().error(f"Error in camera callback: {e}")
 
     def process_front_camera(self, cv_image):
         """Front Camera: Holistic + Face Mesh"""
         image_rgb = cv2.cvtColor(cv_image, cv2.COLOR_BGR2RGB)
         image_rgb.flags.writeable = False
 
-        # Holistic処理
         holistic_results = self.holistic.process(image_rgb)
-        
-        # Face Mesh処理
         face_results = self.face_mesh.process(image_rgb)
 
         image_rgb.flags.writeable = True
@@ -183,8 +186,10 @@ class UnifiedCameraNode(Node):
         # ランドマーク抽出
         pose_lm = self.extract_landmarks(holistic_results.pose_landmarks)
         face_lm = self.extract_landmarks_from_multi(face_results.multi_face_landmarks)
+        left_hand = self.extract_landmarks(holistic_results.left_hand_landmarks)
+        right_hand = self.extract_landmarks(holistic_results.right_hand_landmarks)
 
-        return annotated, pose_lm, face_lm
+        return annotated, pose_lm, face_lm, left_hand, right_hand
 
     def process_top_camera(self, cv_image):
         """Top Camera: Hands only"""
