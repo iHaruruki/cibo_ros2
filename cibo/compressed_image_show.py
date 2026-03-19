@@ -3,7 +3,7 @@
 
 import rclpy
 from rclpy.node import Node
-from sensor_msgs.msg import Image
+from sensor_msgs.msg import Image, CompressedImage
 from cv_bridge import CvBridge
 import cv2
 import numpy as np
@@ -26,12 +26,12 @@ class CameraImageDisplay(Node):
 
         self.get_logger().info("Subscribing to camera topics...")
         
-        # FRONTカメラの非圧縮画像トピック
-        front_color_sub = Subscriber(self, Image, '/front_camera/color/image_raw', qos_profile=qos_profile)
+        # FRONTカメラの圧縮カラー画像 + 非圧縮深度画像
+        front_color_sub = Subscriber(self, CompressedImage, '/front_camera/color/image_raw/compressed', qos_profile=qos_profile)
         front_depth_sub = Subscriber(self, Image, '/front_camera/depth/image_raw', qos_profile=qos_profile)
         
-        # TOPカメラの非圧縮画像トピック
-        top_color_sub = Subscriber(self, Image, '/top_camera/color/image_raw', qos_profile=qos_profile)
+        # TOPカメラの圧縮カラー画像 + 非圧縮深度画像
+        top_color_sub = Subscriber(self, CompressedImage, '/top_camera/color/image_raw/compressed', qos_profile=qos_profile)
         top_depth_sub = Subscriber(self, Image, '/top_camera/depth/image_raw', qos_profile=qos_profile)
 
         # 全カメラのメッセージ同期（FRONT color, FRONT depth, TOP color, TOP depth）
@@ -50,18 +50,39 @@ class CameraImageDisplay(Node):
         
         self.frame_count = 0
 
+    def decompress_color_image(self, compressed_msg):
+        """圧縮カラー画像をデコードする"""
+        try:
+            if len(compressed_msg.data) == 0:
+                return None
+                
+            # 圧縮データをNumPy配列に変換
+            compressed_data = np.frombuffer(compressed_msg.data, np.uint8)
+            
+            # JPEGで圧縮されているカラー画像として読み込む
+            image = cv2.imdecode(compressed_data, cv2.IMREAD_COLOR)
+            
+            if image is None:
+                return None
+            
+            return image
+        except Exception as e:
+            self.get_logger().error(f"Error decompressing color image: {e}")
+            return None
+
     def camera_callback(self, front_color_msg, front_depth_msg, top_color_msg, top_depth_msg):
         try:
             self.frame_count += 1
             
-            # FRONTカメラのカラー画像処理
+            # FRONTカメラのカラー画像処理（圧縮形式）
             try:
-                front_color_image = self.bridge.imgmsg_to_cv2(front_color_msg, desired_encoding='bgr8')
-                cv2.imshow("FRONT Camera Color", front_color_image)
+                front_color_image = self.decompress_color_image(front_color_msg)
+                if front_color_image is not None:
+                    cv2.imshow("FRONT Camera Color", front_color_image)
             except Exception as e:
                 self.get_logger().error(f"Error processing FRONT color: {e}")
             
-            # FRONTカメラの深度画像処理
+            # FRONTカメラの深度画像処理（非圧縮形式）
             try:
                 front_depth_image = self.bridge.imgmsg_to_cv2(front_depth_msg, desired_encoding='passthrough')
                 front_depth_normalized = cv2.normalize(front_depth_image, None, 0, 255, cv2.NORM_MINMAX)
@@ -71,14 +92,15 @@ class CameraImageDisplay(Node):
             except Exception as e:
                 self.get_logger().error(f"Error processing FRONT depth: {e}")
 
-            # TOPカメラのカラー画像処理
+            # TOPカメラのカラー画像処理（圧縮形式）
             try:
-                top_color_image = self.bridge.imgmsg_to_cv2(top_color_msg, desired_encoding='bgr8')
-                cv2.imshow("TOP Camera Color", top_color_image)
+                top_color_image = self.decompress_color_image(top_color_msg)
+                if top_color_image is not None:
+                    cv2.imshow("TOP Camera Color", top_color_image)
             except Exception as e:
                 self.get_logger().error(f"Error processing TOP color: {e}")
             
-            # TOPカメラの深度画像処理
+            # TOPカメラの深度画像処理（非圧縮形式）
             try:
                 top_depth_image = self.bridge.imgmsg_to_cv2(top_depth_msg, desired_encoding='passthrough')
                 top_depth_normalized = cv2.normalize(top_depth_image, None, 0, 255, cv2.NORM_MINMAX)
