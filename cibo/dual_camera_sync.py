@@ -4,7 +4,7 @@
 
 import rclpy
 from rclpy.node import Node
-from sensor_msgs.msg import Image, CompressedImage
+from sensor_msgs.msg import Image, CompressedImage, CameraInfo
 from std_msgs.msg import Float32MultiArray
 from cv_bridge import CvBridge
 import cv2
@@ -13,6 +13,8 @@ import mediapipe as mp
 from message_filters import ApproximateTimeSynchronizer, Subscriber
 from rclpy.qos import QoSProfile, ReliabilityPolicy, HistoryPolicy
 from rclpy.parameter import Parameter
+from tf2_ros import TransformBroadcaster
+from geometry_msgs.msg import TransformStamped
 
 class UnifiedCameraNode(Node):
     def __init__(self):
@@ -56,12 +58,15 @@ class UnifiedCameraNode(Node):
         self.declare_parameter('front_roi_y', 0)
         self.declare_parameter('front_roi_width', 400)
         self.declare_parameter('front_roi_height', 300)
+        self.declare_parameter('front_tf_rate_hz', 30.0)
+        self.declare_parameter('front_publish_face_tf', False)
         
         self.declare_parameter('top_roi_enabled', False)
         self.declare_parameter('top_roi_x', 0)
         self.declare_parameter('top_roi_y', 0)
         self.declare_parameter('top_roi_width', 400)
         self.declare_parameter('top_roi_height', 300)
+        self.declare_parameter('top_tf_rate_hz', 30.0)
 
         # ROI設定を読み込む
         self.front_roi_enabled = bool(self.get_parameter('front_roi_enabled').value)
@@ -69,12 +74,15 @@ class UnifiedCameraNode(Node):
         self.front_roi_y = int(self.get_parameter('front_roi_y').value)
         self.front_roi_width = int(self.get_parameter('front_roi_width').value)
         self.front_roi_height = int(self.get_parameter('front_roi_height').value)
+        self.front_tf_rate_hz = float(self.get_parameter('front_tf_rate_hz').value)
+        self.front_publish_face_tf = bool(self.get_parameter('front_publish_face_tf').value)
         
         self.top_roi_enabled = bool(self.get_parameter('top_roi_enabled').value)
         self.top_roi_x = int(self.get_parameter('top_roi_x').value)
         self.top_roi_y = int(self.get_parameter('top_roi_y').value)
         self.top_roi_width = int(self.get_parameter('top_roi_width').value)
         self.top_roi_height = int(self.get_parameter('top_roi_height').value)
+        self.top_tf_rate_hz = float(self.get_parameter('top_tf_rate_hz').value)
 
         # ==== ROI GUI State ====
         self.front_dragging = False
@@ -87,6 +95,11 @@ class UnifiedCameraNode(Node):
 
         self.setup_opencv_windows()
 
+        # ==== TF Broadcaster ====
+        self.tf_broadcaster = TransformBroadcaster(self)
+        self.front_last_tf_time = self.get_clock().now()
+        self.top_last_tf_time = self.get_clock().now()
+
         # QoS設定
         qos_profile = QoSProfile(
             reliability=ReliabilityPolicy.BEST_EFFORT,
@@ -97,17 +110,19 @@ class UnifiedCameraNode(Node):
         self.get_logger().info("Setting up camera subscribers...")
         
         # ==== Subscribers ====
-        # FRONTカメラ：圧縮カラー + 非圧縮深度
+        # FRONTカメラ：圧縮カラー + 非圧縮深度 + CameraInfo
         front_color_sub = Subscriber(self, CompressedImage, '/front_camera/color/image_raw/compressed', qos_profile=qos_profile)
         front_depth_sub = Subscriber(self, Image, '/front_camera/depth/image_raw', qos_profile=qos_profile)
+        front_depth_info_sub = Subscriber(self, CameraInfo, '/front_camera/depth/camera_info', qos_profile=qos_profile)
         
-        # TOPカメラ：圧縮カラー + 非圧縮深度
+        # TOPカメラ：圧縮カラー + 非圧縮深度 + CameraInfo
         top_color_sub = Subscriber(self, CompressedImage, '/top_camera/color/image_raw/compressed', qos_profile=qos_profile)
         top_depth_sub = Subscriber(self, Image, '/top_camera/depth/image_raw', qos_profile=qos_profile)
+        top_depth_info_sub = Subscriber(self, CameraInfo, '/top_camera/depth/camera_info', qos_profile=qos_profile)
 
         # メッセージ同期
         self.camera_sync = ApproximateTimeSynchronizer(
-            [front_color_sub, front_depth_sub, top_color_sub, top_depth_sub],
+            [front_color_sub, front_depth_sub, front_depth_info_sub, top_color_sub, top_depth_sub, top_depth_info_sub],
             queue_size=50,
             slop=0.5
         )
@@ -117,16 +132,8 @@ class UnifiedCameraNode(Node):
         self.front_annotated_pub = self.create_publisher(Image, '/front_camera/annotated_image', 10)
         self.top_annotated_pub = self.create_publisher(Image, '/top_camera/annotated_image', 10)
 
-        # ランドマーク出力
-        self.front_pose_pub = self.create_publisher(Float32MultiArray, '/front_camera/pose_landmarks', 10)
-        self.front_face_pub = self.create_publisher(Float32MultiArray, '/front_camera/face_landmarks', 10)
-        self.front_left_hand_pub = self.create_publisher(Float32MultiArray, '/front_camera/left_hand_landmarks', 10)
-        self.front_right_hand_pub = self.create_publisher(Float32MultiArray, '/front_camera/right_hand_landmarks', 10)
-        self.top_left_hand_pub = self.create_publisher(Float32MultiArray, '/top_camera/left_hand_landmarks', 10)
-        self.top_right_hand_pub = self.create_publisher(Float32MultiArray, '/top_camera/right_hand_landmarks', 10)
-
         self.frame_count = 0
-        self.get_logger().info('Unified Camera Node initialized with ROI support')
+        self.get_logger().info('Unified Camera Node initialized with TF broadcasting (depth camera as parent frame)')
 
     def setup_opencv_windows(self):
         """OpenCVウィンドウのセットアップ"""
@@ -218,7 +225,8 @@ class UnifiedCameraNode(Node):
             self.get_logger().error(f"Error decompressing color image: {e}")
             return None
 
-    def camera_callback(self, front_color_msg, front_depth_msg, top_color_msg, top_depth_msg):
+    def camera_callback(self, front_color_msg, front_depth_msg, front_depth_info_msg,
+                       top_color_msg, top_depth_msg, top_depth_info_msg):
         try:
             self.frame_count += 1
 
@@ -227,19 +235,49 @@ class UnifiedCameraNode(Node):
             if front_color is None:
                 return
 
+            try:
+                front_depth = self.bridge.imgmsg_to_cv2(front_depth_msg)
+                if front_depth_msg.encoding in ('16UC1', 'mono16'):
+                    front_depth_m = front_depth.astype(np.float32) / 1000.0
+                elif front_depth_msg.encoding in ('32FC1'):
+                    front_depth_m = front_depth.astype(np.float32)
+                else:
+                    front_depth_m = front_depth.astype(np.float32)
+            except Exception as e:
+                self.get_logger().error(f'Front depth error: {e}')
+                return
+
             # Holistic + Face Mesh処理
             front_annotated, pose_lm, face_lm, front_left_hand, front_right_hand = self.process_front_camera(front_color)
             
             # 出力
             self.publish_image(self.front_annotated_pub, front_annotated, front_color_msg)
-            self.publish_landmarks(self.front_pose_pub, pose_lm)
-            self.publish_landmarks(self.front_face_pub, face_lm)
-            self.publish_landmarks(self.front_left_hand_pub, front_left_hand)
-            self.publish_landmarks(self.front_right_hand_pub, front_right_hand)
+
+            # TF配信（3D座標）- parent frameは深度カメラのframe
+            now = self.get_clock().now()
+            if (now - self.front_last_tf_time).nanoseconds >= (1e9 / self.front_tf_rate_hz):
+                self.front_last_tf_time = now
+                self.broadcast_landmarks_as_tf(
+                    front_depth_msg.header, front_depth_m, front_depth_info_msg,
+                    pose_lm, face_lm, front_left_hand, front_right_hand,
+                    self.front_publish_face_tf, 'front'
+                )
 
             # ==== TOP Camera処理 ====
             top_color = self.decompress_color_image(top_color_msg)
             if top_color is None:
+                return
+
+            try:
+                top_depth = self.bridge.imgmsg_to_cv2(top_depth_msg)
+                if top_depth_msg.encoding in ('16UC1', 'mono16'):
+                    top_depth_m = top_depth.astype(np.float32) / 1000.0
+                elif top_depth_msg.encoding in ('32FC1'):
+                    top_depth_m = top_depth.astype(np.float32)
+                else:
+                    top_depth_m = top_depth.astype(np.float32)
+            except Exception as e:
+                self.get_logger().error(f'Top depth error: {e}')
                 return
 
             # 手検出のみ
@@ -247,8 +285,16 @@ class UnifiedCameraNode(Node):
 
             # 出力
             self.publish_image(self.top_annotated_pub, top_annotated, top_color_msg)
-            self.publish_landmarks(self.top_left_hand_pub, top_left_hand)
-            self.publish_landmarks(self.top_right_hand_pub, top_right_hand)
+
+            # TF配信（3D座標）- parent frameは深度カメラのframe
+            now = self.get_clock().now()
+            if (now - self.top_last_tf_time).nanoseconds >= (1e9 / self.top_tf_rate_hz):
+                self.top_last_tf_time = now
+                self.broadcast_landmarks_as_tf(
+                    top_depth_msg.header, top_depth_m, top_depth_info_msg,
+                    [], [], top_left_hand, top_right_hand,
+                    False, 'top'
+                )
 
             # ==== Display with ROI ====
             self.display_with_roi(front_annotated, "FRONT Camera - ROI Selection", 
@@ -265,12 +311,10 @@ class UnifiedCameraNode(Node):
             if key == ord('q'):
                 cv2.destroyAllWindows()
             elif key == ord('r'):
-                # Front ROI リセット
                 self.front_roi_enabled = False
                 self.set_parameters([Parameter('front_roi_enabled', Parameter.Type.BOOL, False)])
                 self.get_logger().info('Front ROI reset')
             elif key == ord('t'):
-                # Top ROI リセット
                 self.top_roi_enabled = False
                 self.set_parameters([Parameter('top_roi_enabled', Parameter.Type.BOOL, False)])
                 self.get_logger().info('Top ROI reset')
@@ -286,21 +330,18 @@ class UnifiedCameraNode(Node):
         """ROI表示付きで画像を表示"""
         disp = image.copy()
         
-        # ROIが有効な場合、矩形を描画
         if roi_enabled and roi_width > 0 and roi_height > 0:
             cv2.rectangle(disp, (roi_x, roi_y),
                           (roi_x + roi_width, roi_y + roi_height), (0, 255, 0), 2)
             cv2.putText(disp, 'ROI', (roi_x, roi_y - 10),
                         cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 0), 2)
         
-        # ドラッグ中の矩形を描画
         if dragging and start_point and end_point:
             cv2.rectangle(disp, start_point, end_point, (255, 0, 0), 2)
             cv2.putText(disp, 'Selecting ROI...',
                         (start_point[0], start_point[1] - 10),
                         cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 0, 0), 2)
         
-        # ガイドテキスト
         cv2.putText(disp, 'Drag to select ROI (q: quit, r/t: reset)', (10, 30),
                     cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 0), 2)
         
@@ -327,7 +368,6 @@ class UnifiedCameraNode(Node):
             roi_y2 = height
             roi_bbox = (0, 0, width, height)
         
-        # BGR→RGB
         image_rgb = cv2.cvtColor(processing_image, cv2.COLOR_BGR2RGB)
         image_rgb.flags.writeable = False
 
@@ -355,7 +395,6 @@ class UnifiedCameraNode(Node):
                 landmark_drawing_spec=self.mp_drawing_styles.get_default_hand_landmarks_style(),
                 connection_drawing_spec=self.mp_drawing_styles.get_default_hand_connections_style())
 
-        # Face mesh (with iris)
         if face_results.multi_face_landmarks:
             for face_landmarks in face_results.multi_face_landmarks:
                 self.mp_drawing.draw_landmarks(
@@ -479,16 +518,69 @@ class UnifiedCameraNode(Node):
                 landmarks.extend([x, y, z])
         return landmarks
 
+    def _robust_depth(self, depth_m, v, u):
+        """3x3メディアン（ゼロを無視）→ メートル"""
+        h, w = depth_m.shape
+        v0 = max(0, v-1); v1 = min(h, v+2)
+        u0 = max(0, u-1); u1 = min(w, u+2)
+        patch = depth_m[v0:v1, u0:u1].reshape(-1)
+        vals = patch[np.isfinite(patch) & (patch > 0.0)]
+        if vals.size == 0:
+            return np.nan
+        return float(np.median(vals))
+
+    def broadcast_landmarks_as_tf(self, depth_header, depth_m, depth_info, pose_lm, face_lm, 
+                                  left_hand, right_hand, publish_face, prefix):
+        """ランドマークを3次元座標としてTFで配信
+        
+        Parent Frame: 深度カメラのframe (depth_header.frame_id)
+        """
+        parent_frame = depth_header.frame_id
+        
+        fx = depth_info.k[0]; fy = depth_info.k[4]
+        cx = depth_info.k[2]; cy = depth_info.k[5]
+
+        def broadcast_set(flat_xyz, name_prefix):
+            n = len(flat_xyz) // 3
+            for i in range(n):
+                u = float(flat_xyz[3*i + 0])
+                v = float(flat_xyz[3*i + 1])
+                u_i = int(np.clip(u, 0, depth_m.shape[1]-1))
+                v_i = int(np.clip(v, 0, depth_m.shape[0]-1))
+                z = self._robust_depth(depth_m, v_i, u_i)
+
+                if not np.isfinite(z) or z <= 0.0:
+                    continue
+
+                X = (u - cx) / fx * z
+                Y = (v - cy) / fy * z
+                
+                t = TransformStamped()
+                t.header.stamp = depth_header.stamp
+                t.header.frame_id = parent_frame  # 深度カメラのframeがparent
+                t.child_frame_id = f'{prefix}_{name_prefix}_{i}'
+                t.transform.translation.x = float(X)
+                t.transform.translation.y = float(Y)
+                t.transform.translation.z = float(z)
+                t.transform.rotation.x = 0.0
+                t.transform.rotation.y = 0.0
+                t.transform.rotation.z = 0.0
+                t.transform.rotation.w = 1.0
+                self.tf_broadcaster.sendTransform(t)
+
+        if pose_lm:
+            broadcast_set(pose_lm, 'pose')
+        if publish_face and face_lm:
+            broadcast_set(face_lm, 'face')
+        if left_hand:
+            broadcast_set(left_hand, 'left_hand')
+        if right_hand:
+            broadcast_set(right_hand, 'right_hand')
+
     def publish_image(self, pub, cv_image, header_msg):
         """画像をパブリッシュ"""
         msg = self.bridge.cv2_to_imgmsg(cv_image, encoding="bgr8")
         msg.header = header_msg.header
-        pub.publish(msg)
-
-    def publish_landmarks(self, pub, landmarks):
-        """ランドマークをパブリッシュ"""
-        msg = Float32MultiArray()
-        msg.data = landmarks
         pub.publish(msg)
 
 
