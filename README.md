@@ -6,146 +6,6 @@
 - Estimating a person's state during meals.
 
 ## 📦 Feature
-### Nodes & Topics
-```mermaid
-flowchart LR
-    A([camera_01])
-    B([camera_02])
-    C([front_camera_node])
-    D([top_camera_node])
-    E([eating_state_detector_node])
-    F([robot_state_publisher])
-    G[[TF]]
-
-    H(/camera_01/color/image_raw)
-    I(/camera_01/depth/image_raw)
-    J(/camera_01/depth/camera_info)
-    K(/camera_02/color/image_raw)
-    L(/camera_02/depth/image_raw)
-    M(/camera_02/depth/camera_info)
-    N(/front_camera/annotated_image)
-    O(/front_camera/pose_landmarks)
-    P(/front_camera/face_landmarks)
-    Q(/front_camera/left_hand_landmarks)
-    R(/front_camera/right_hand_landmarks)
-    S(/top_camera/annotated_image)
-    T(/top_camera/left_hand_landmarks)
-    U(/top_camera/right_hand_landmarks)
-    V(/robot_description)
-
-    A --> H
-    A --> I
-    A --> J
-    H --> C
-    I --> C
-    J --> C
-    C --> N
-    C --> O
-    C --> P
-    C --> Q
-    C --> R
-    C --> G
-
-    B --> K
-    B --> L
-    B --> M
-    K --> D
-    L --> D
-    M --> D
-    D --> S
-    D --> T
-    D --> U
-    D --> G
-
-    F --> V
-    F --> G
-
-    O --> E
-    P --> E
-    Q --> E
-    R --> E
-```
-### Flowchart
-front_camera_depth_node
-```mermaid
-flowchart TD
-  TStart([top_camera_node]) --> TSync[ApproximateTimeSynchronizer]
-  TInputs["Sub: /camera_02/color/image_raw\nSub: /camera_02/depth/image_raw\nSub: /camera_02/depth/camera_info"] --> TSync
-  TSync --> TColor["Convert color via CvBridge (bgr8)"]
-  TSync --> TDepth["Decode depth → meters"]
-  TColor --> TROI{ROI enabled?}
-  TROI -- Yes --> TCrop["Crop image to ROI"]
-  TROI -- No --> TNoCrop["Use full image"]
-  TCrop --> TMp["Run MediaPipe Hands"]
-  TNoCrop --> TMp
-  TMp --> TDraw["Draw hand landmarks → annotated"]
-  TMp --> TExtract["Extract arrays: left/right hand"]
-  TDraw --> TPubImg["Publish: /top_camera/annotated_image"]
-  TExtract --> TPubLm["Publish: /top_camera/left_hand_landmarks, /top_camera/right_hand_landmarks"]
-  TDepth --> TProject["Project 2D + depth → 3D (fx, fy, cx, cy)"]
-  TExtract --> TProject
-  TProject --> TTF["Broadcast TF frames (rate limit by tf_rate_hz)"]
-  TDraw --> TGUI["Show ROI window (drag=set, r=reset, q=close)"]
-```
-front_camera_depth_node
-```mermaid
-flowchart TD
-  FStart([front_camera_node]) --> FSync[ApproximateTimeSynchronizer]
-  FInputs["Sub: /camera_01/color/image_raw\nSub: /camera_01/depth/image_raw\nSub: /camera_01/depth/camera_info"] --> FSync
-  FSync --> FColor["Convert color via CvBridge (bgr8)"]
-  FSync --> FDepth["Decode depth → meters"]
-  FColor --> FROI{ROI enabled?}
-  FROI -- Yes --> FCrop["Crop image to ROI"]
-  FROI -- No --> FNoCrop["Use full image"]
-  FCrop --> FMp["Run MediaPipe Holistic + FaceMesh"]
-  FNoCrop --> FMp
-  FMp --> FDraw["Draw landmarks → annotated"]
-  FMp --> FExtract["Extract arrays: pose, face, left/right hand"]
-  FDraw --> FPubImg["Publish: /front_camera/annotated_image"]
-  FExtract --> FPubLm["Publish: /front_camera/pose_landmarks, /front_camera/face_landmarks, /front_camera/left_hand_landmarks, /front_camera/right_hand_landmarks"]
-  FDepth --> FProject["Project 2D + depth → 3D (fx, fy, cx, cy)"]
-  FExtract --> FProject
-  FProject --> FTF["Broadcast TF frames (rate limit by tf_rate_hz)"]
-  FDraw --> FGUI["Show ROI window (drag=set, r=reset, q=close)"]
-```
-Chewing Count Node
-```mermaid
-flowchart TD
-  A["Start node: eating_state_detector"] --> P["Declare & get parameters\n(ema_alpha, feeding/speaking/chewing thresholds,\nmin_chewing_interval, stability_frames)"]
-  P --> Q["Create QoSProfile\n(BEST_EFFORT, depth=5)"]
-  Q --> S["Create subscribers\n/front_camera/pose_landmarks\n/front_camera/face_landmarks\n/front_camera/left_hand_landmarks\n/front_camera/right_hand_landmarks"]
-  Q --> PUBS_INIT["Create publishers\n/eating_state/current_state\n/eating_state/chewing_count\n/eating_state/dh, /dj, /dm\n/eating_state/metrics"]
-
-  %% Callbacks -> update_state
-  S -->|pose_callback / face_callback /\nleft_hand_callback / right_hand_callback| U["update_state()"]
-
-  %% update_state pipeline
-  U --> CM["calculate_metrics()\n- dh_r, dh_l, dh = min(dh_r, dh_l)\n- dj = nose↔chin distance\n- dm = upper_lip↔lower_lip distance\n- MAR = dm / mouth_width\n- mar_ema = EMA(MAR)"]
-  CM --> PDM["publish_distance_metrics()\n-> /eating_state/dh, /dj, /dm"]
-
-  %% Determine state
-  CM --> DET["determine_eating_state()"]
-  DET --> FEED["detect_feeding():\ndh != inf and dh < feeding_threshold"]
-  DET --> SPEAK["detect_speaking():\nmar_ema > speaking_threshold\nand not detect_chewing()"]
-  DET --> CHEW["detect_chewing():\nmar_ema hysteresis (high/low)\ncycle timing > min_chewing_interval\n-> increment & publish count"]
-  FEED --> NEWSTATE["new_state = FEEDING"]
-  SPEAK --> NEWSTATE_S["new_state = SPEAKING"]
-  CHEW --> NEWSTATE_C["new_state = CHEWING"]
-  DET -->|else| NEWSTATE_I["new_state = IDLE"]
-
-  %% State stability & publish
-  NEWSTATE --> HIST["state_history.append(new_state)\n(maxlen = stability_frames)"]
-  NEWSTATE_S --> HIST
-  NEWSTATE_C --> HIST
-  NEWSTATE_I --> HIST
-
-  HIST --> STABLE{"all entries equal\nfor stability_frames?"}
-  STABLE -- Yes --> SET["current_state := new_state\n(log transition)"]
-  STABLE -- No --> KEEP["keep current_state"]
-
-  SET --> PUBALL["Publish current_state -> /eating_state/current_state\nPublish metrics array -> /eating_state/metrics\n(chewing_count is published on updates)"]
-  KEEP --> PUBALL
-```
 
 
 ## 🛠️ Setup
@@ -297,7 +157,7 @@ colcon build --symlink-install --packages-select orbbec_camera
 
 ### Launch Cibo
 ```bash
-ros2 launch cibo cibo_depth.launch.py
+ros2 launch cibo cibo.launch.py
 ```
 How to Select an ROI (Specify the area for skeleton estimation) / ROI選択方法（骨格推定を行う範囲を指定する）
 1. After launching the node, the OpenCV window will appear.  
@@ -311,23 +171,6 @@ How to Select an ROI (Specify the area for skeleton estimation) / ROI選択方�
 ```bash
 ros2 run cibo image_show_node
 ```
-### Run chewing count node
-```bash
-ros2 run cibo chew_counter_node
-```
-> [!WARNING]
-> `ros2 run cibo chew_counter_node`  
-> It may not function properly as it is currently being adjusted.  
-> 調整中のため，正常に動作しない．
-
-### Run eating state node 
-```bash
-ros2 run cibo eating_state_detector_node
-```
-> [!WARNING]
-> `ros2 run cibo chew_counter_node`  
-> It may not function properly as it is currently being adjusted.  
-> 調整中のため，正常に動作しない．
 
 ### [rosbag](https://docs.ros.org/en/humble/Tutorials/Beginner-CLI-Tools/Recording-And-Playing-Back-Data/Recording-And-Playing-Back-Data.html)
 If you want to record images, use rosbg. / 画像を録画したい場合は，rosbagを利用
@@ -336,62 +179,19 @@ If you want to record images, use rosbg. / 画像を録画したい場合は，r
 cd ~/ros2_ws/bag_files
 # If you have created it, use `mkdir bag_files`
 ```
-Recode all topic / すべてのトピックを記録する
-```bash
-ros2 bag record -a
-# This command is mode that record all topic.
-```
 Recode only specific topics / 特定のトピックのみ記録する
 ```bash
 # ros2 bag record --topics <topic_name_1> <topic_name_2> <topic_name_3>
 ros2 bag record --topics /camera_01/color/image_raw /camera_01/depth/image_raw /camera_02/color/image_raw /camera_02/depth/image_raw
 ```
+Recode all topic / すべてのトピックを記録する
+```bash
+ros2 bag record -a
+# This command is mode that record all topic.
+```
 > [!WARNING]
 > Due to the large data size, be mindful of your available storage space!  
 > データサイズが大きいため，ストレージの空き容量に注意！
-
-
-## 🚀 Node List
-
-### front_camera_node
-- **Function**: Skeletal estimation node for the front camera. Performs detailed facial analysis using the Face Mesh model. / フロントカメラ用の骨格推定ノード．Face Meshモデルによる詳細な顔解析を実行．
-
-### top_camera_node  
-- **Function**: Skeleton estimation node for top cameras. Specialized for pose and hand detection. / トップカメラ用の骨格推定ノード．ポーズと手の検出に特化．
-
-### chew_counter_node
-- **Function**: Counting chews / 咀嚼回数をカウントする．
-- [methods](documents/chewing_count.md)
-
-## eating_state_detection
-**Function**: State estimation / 状態推定
-- [methods](documents/chewing_count.md)
-
-## 📦 Parameter List ([ROS 2 params](https://docs.ros.org/en/humble/Concepts/Basic/About-Parameters.html))
-
-### front_camera_node
-| Parameter | Type | Default value | Description |
-|-----------|------|---------------|-------------|
-| `enable_roi` | bool | true | Enable ROI (Region of Interest) |
-| `roi_x` | int | 0 | ROI start X coordinate |
-| `roi_y` | int | 0 | ROI start Y coordinate |
-| `roi_width` | int | 400 | ROI width |
-| `roi_height` | int | 300 | High ROI |
-| `min_detection_confidence` | double | 0.5 | Minimum confidence level for detection |
-| `min_tracking_confidence` | double | 0.5 | Minimum confidence level for tracking |
-| `enable_iris` | bool | true | Enable iris detection |
-| `refine_landmarks` | bool | true | Enable detailed facial landmarks |
-
-### top_camera_node
-| Parameter | Type | Default value | Description |
-|-----------|------|---------------|-------------|
-| `enable_roi` | bool | true | Enable ROI (Region of Interest) |
-| `roi_x` | int | 0 | ROI start X coordinate |
-| `roi_y` | int | 0 | ROI start Y coordinate |
-| `roi_width` | int | 400 | ROI width |
-| `roi_height` | int | 300 | High ROI |
-| `min_detection_confidence` | double | 0.5 | Minimum confidence level for detection |
-| `min_tracking_confidence` | double | 0.5 | Minimum confidence level for tracking |
 
 ## 👤 Authors
 - **[iHaruruki](https://github.com/iHaruruki)** — Main author & maintainer
