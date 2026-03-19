@@ -156,6 +156,9 @@ class UnifiedCameraNode(Node):
 
     def process_front_camera(self, cv_image):
         """Front Camera: Holistic + Face Mesh"""
+        height, width = cv_image.shape[:2]
+        
+        # BGR→RGB
         image_rgb = cv2.cvtColor(cv_image, cv2.COLOR_BGR2RGB)
         image_rgb.flags.writeable = False
 
@@ -165,34 +168,54 @@ class UnifiedCameraNode(Node):
         image_rgb.flags.writeable = True
         annotated = cv2.cvtColor(image_rgb, cv2.COLOR_RGB2BGR)
 
-        # ランドマーク描画
+        # Draw holistic
         if holistic_results.pose_landmarks:
             self.mp_drawing.draw_landmarks(
-                annotated, holistic_results.pose_landmarks, self.mp_holistic.POSE_CONNECTIONS)
+                annotated, holistic_results.pose_landmarks, self.mp_holistic.POSE_CONNECTIONS,
+                landmark_drawing_spec=self.mp_drawing_styles.get_default_pose_landmarks_style())
 
         if holistic_results.left_hand_landmarks:
             self.mp_drawing.draw_landmarks(
-                annotated, holistic_results.left_hand_landmarks, self.mp_holistic.HAND_CONNECTIONS)
+                annotated, holistic_results.left_hand_landmarks, self.mp_holistic.HAND_CONNECTIONS,
+                landmark_drawing_spec=self.mp_drawing_styles.get_default_hand_landmarks_style(),
+                connection_drawing_spec=self.mp_drawing_styles.get_default_hand_connections_style())
 
         if holistic_results.right_hand_landmarks:
             self.mp_drawing.draw_landmarks(
-                annotated, holistic_results.right_hand_landmarks, self.mp_holistic.HAND_CONNECTIONS)
+                annotated, holistic_results.right_hand_landmarks, self.mp_holistic.HAND_CONNECTIONS,
+                landmark_drawing_spec=self.mp_drawing_styles.get_default_hand_landmarks_style(),
+                connection_drawing_spec=self.mp_drawing_styles.get_default_hand_connections_style())
 
+        # Face mesh (with iris)
         if face_results.multi_face_landmarks:
             for face_landmarks in face_results.multi_face_landmarks:
                 self.mp_drawing.draw_landmarks(
-                    annotated, face_landmarks, self.mp_face_mesh.FACEMESH_TESSELATION)
+                    annotated, face_landmarks, self.mp_face_mesh.FACEMESH_TESSELATION,
+                    landmark_drawing_spec=None,
+                    connection_drawing_spec=self.mp_drawing_styles.get_default_face_mesh_tesselation_style())
 
-        # ランドマーク抽出
-        pose_lm = self.extract_landmarks(holistic_results.pose_landmarks)
-        face_lm = self.extract_landmarks_from_multi(face_results.multi_face_landmarks)
-        left_hand = self.extract_landmarks(holistic_results.left_hand_landmarks)
-        right_hand = self.extract_landmarks(holistic_results.right_hand_landmarks)
+                self.mp_drawing.draw_landmarks(
+                    annotated, face_landmarks, self.mp_face_mesh.FACEMESH_CONTOURS,
+                    landmark_drawing_spec=None,
+                    connection_drawing_spec=self.mp_drawing_styles.get_default_face_mesh_contours_style())
+
+                self.mp_drawing.draw_landmarks(
+                    annotated, face_landmarks, self.mp_face_mesh.FACEMESH_IRISES,
+                    landmark_drawing_spec=None,
+                    connection_drawing_spec=self.mp_drawing_styles.get_default_face_mesh_iris_connections_style())
+
+        # Extract landmarks
+        pose_lm = self.extract_pose_landmarks(holistic_results, width, height)
+        face_lm = self.extract_face_landmarks(face_results, width, height)
+        left_hand = self.extract_hand_landmarks(holistic_results.left_hand_landmarks, width, height)
+        right_hand = self.extract_hand_landmarks(holistic_results.right_hand_landmarks, width, height)
 
         return annotated, pose_lm, face_lm, left_hand, right_hand
 
     def process_top_camera(self, cv_image):
         """Top Camera: Hands only"""
+        height, width = cv_image.shape[:2]
+        
         image_rgb = cv2.cvtColor(cv_image, cv2.COLOR_BGR2RGB)
         image_rgb.flags.writeable = False
 
@@ -209,9 +232,11 @@ class UnifiedCameraNode(Node):
                 handedness = hands_results.multi_handedness[idx].classification[0].label
                 
                 self.mp_drawing.draw_landmarks(
-                    annotated, hand_landmarks, self.mp_hands.HAND_CONNECTIONS)
+                    annotated, hand_landmarks, self.mp_hands.HAND_CONNECTIONS,
+                    landmark_drawing_spec=self.mp_drawing_styles.get_default_hand_landmarks_style(),
+                    connection_drawing_spec=self.mp_drawing_styles.get_default_hand_connections_style())
                 
-                hand_lm = self.extract_landmarks(hand_landmarks)
+                hand_lm = self.extract_hand_landmarks(hand_landmarks, width, height)
                 
                 if handedness == "Left":
                     left_hand = hand_lm
@@ -220,22 +245,39 @@ class UnifiedCameraNode(Node):
 
         return annotated, left_hand, right_hand
 
-    def extract_landmarks(self, landmarks):
-        """ランドマークをフラット配列に変換"""
-        flat = []
-        if landmarks:
-            for lm in landmarks.landmark:
-                flat.extend([lm.x, lm.y, lm.z])
-        return flat
+    def extract_pose_landmarks(self, results, width, height):
+        """ランドマークを抽出（ピクセル座標 + MediaPipe Z）"""
+        landmarks = []
+        if results and results.pose_landmarks:
+            for lm in results.pose_landmarks.landmark:
+                x = lm.x * width
+                y = lm.y * height
+                z = lm.z
+                landmarks.extend([x, y, z])
+        return landmarks
 
-    def extract_landmarks_from_multi(self, multi_landmarks):
-        """複数のランドマークをフラット配列に変換"""
-        flat = []
-        if multi_landmarks:
-            for landmarks in multi_landmarks:
-                for lm in landmarks.landmark:
-                    flat.extend([lm.x, lm.y, lm.z])
-        return flat
+    def extract_face_landmarks(self, results, width, height):
+        """顔ランドマークを抽出"""
+        landmarks = []
+        if results and results.multi_face_landmarks:
+            for face_lm in results.multi_face_landmarks:
+                for lm in face_lm.landmark:
+                    x = lm.x * width
+                    y = lm.y * height
+                    z = lm.z
+                    landmarks.extend([x, y, z])
+        return landmarks
+
+    def extract_hand_landmarks(self, hand_lm, width, height):
+        """手ランドマークを抽出"""
+        landmarks = []
+        if hand_lm:
+            for lm in hand_lm.landmark:
+                x = lm.x * width
+                y = lm.y * height
+                z = lm.z
+                landmarks.extend([x, y, z])
+        return landmarks
 
     def publish_image(self, pub, cv_image, header_msg):
         """画像をパブリッシュ"""
