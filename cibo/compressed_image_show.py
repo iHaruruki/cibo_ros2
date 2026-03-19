@@ -26,15 +26,15 @@ class CameraImageDisplay(Node):
 
         self.get_logger().info("Subscribing to camera topics...")
         
-        # FRONTカメラの圧縮カラー画像 + 非圧縮深度画像
+        # FRONTカメラ：圧縮カラー + 非圧縮深度
         front_color_sub = Subscriber(self, CompressedImage, '/front_camera/color/image_raw/compressed', qos_profile=qos_profile)
         front_depth_sub = Subscriber(self, Image, '/front_camera/depth/image_raw', qos_profile=qos_profile)
         
-        # TOPカメラの圧縮カラー画像 + 非圧縮深度画像
+        # TOPカメラ：圧縮カラー + 非圧縮深度
         top_color_sub = Subscriber(self, CompressedImage, '/top_camera/color/image_raw/compressed', qos_profile=qos_profile)
         top_depth_sub = Subscriber(self, Image, '/top_camera/depth/image_raw', qos_profile=qos_profile)
 
-        # 全カメラのメッセージ同期（FRONT color, FRONT depth, TOP color, TOP depth）
+        # 全カメラのメッセージ同期
         self.camera_sync = ApproximateTimeSynchronizer(
             [front_color_sub, front_depth_sub, top_color_sub, top_depth_sub],
             queue_size=50,
@@ -70,6 +70,33 @@ class CameraImageDisplay(Node):
             self.get_logger().error(f"Error decompressing color image: {e}")
             return None
 
+    def process_depth_image(self, depth_msg):
+        """非圧縮深度画像を処理する"""
+        try:
+            # 非圧縮深度画像をcv2に変換
+            depth_image = self.bridge.imgmsg_to_cv2(depth_msg, desired_encoding='passthrough')
+            
+            if depth_image is None:
+                return None
+            
+            # 深度画像を正規化して8ビット化
+            if depth_image.dtype == np.uint16:
+                depth_normalized = cv2.normalize(depth_image, None, 0, 255, cv2.NORM_MINMAX)
+                depth_8bit = cv2.convertScaleAbs(depth_normalized)
+            elif depth_image.dtype == np.float32:
+                depth_normalized = cv2.normalize(depth_image, None, 0, 255, cv2.NORM_MINMAX)
+                depth_8bit = depth_normalized.astype(np.uint8)
+            else:
+                depth_8bit = depth_image
+            
+            # カラーマップを適用
+            depth_colored = cv2.applyColorMap(depth_8bit, cv2.COLORMAP_JET)
+            
+            return depth_colored
+        except Exception as e:
+            self.get_logger().error(f"Error processing depth image: {e}")
+            return None
+
     def camera_callback(self, front_color_msg, front_depth_msg, top_color_msg, top_depth_msg):
         try:
             self.frame_count += 1
@@ -84,11 +111,9 @@ class CameraImageDisplay(Node):
             
             # FRONTカメラの深度画像処理（非圧縮形式）
             try:
-                front_depth_image = self.bridge.imgmsg_to_cv2(front_depth_msg, desired_encoding='passthrough')
-                front_depth_normalized = cv2.normalize(front_depth_image, None, 0, 255, cv2.NORM_MINMAX)
-                front_depth_8bit = cv2.convertScaleAbs(front_depth_normalized)
-                front_depth_colored = cv2.applyColorMap(front_depth_8bit, cv2.COLORMAP_JET)
-                cv2.imshow("FRONT Camera Depth", front_depth_colored)
+                front_depth_colored = self.process_depth_image(front_depth_msg)
+                if front_depth_colored is not None:
+                    cv2.imshow("FRONT Camera Depth", front_depth_colored)
             except Exception as e:
                 self.get_logger().error(f"Error processing FRONT depth: {e}")
 
@@ -102,11 +127,9 @@ class CameraImageDisplay(Node):
             
             # TOPカメラの深度画像処理（非圧縮形式）
             try:
-                top_depth_image = self.bridge.imgmsg_to_cv2(top_depth_msg, desired_encoding='passthrough')
-                top_depth_normalized = cv2.normalize(top_depth_image, None, 0, 255, cv2.NORM_MINMAX)
-                top_depth_8bit = cv2.convertScaleAbs(top_depth_normalized)
-                top_depth_colored = cv2.applyColorMap(top_depth_8bit, cv2.COLORMAP_JET)
-                cv2.imshow("TOP Camera Depth", top_depth_colored)
+                top_depth_colored = self.process_depth_image(top_depth_msg)
+                if top_depth_colored is not None:
+                    cv2.imshow("TOP Camera Depth", top_depth_colored)
             except Exception as e:
                 self.get_logger().error(f"Error processing TOP depth: {e}")
             
