@@ -29,10 +29,8 @@ setup(
             'top_camera_depth_node = cibo.top_camera_depth:main',
             'front_camera_node = cibo.front_camera:main',
             'front_camera_depth_node = cibo.front_camera_depth:main',
-            'chew_counter_node = cibo.chew_counter:main',
-            'eating_state_detector_node = cibo.eating_state_detector:main',
             'image_show_node = cibo.image_show:main',
-            'dual_camera_sync_node = cibo.sync_republisher:main',
+            'dual_camera_sync_node_node = cibo.dual_camera_sync:main',
         ],
     },
 )
