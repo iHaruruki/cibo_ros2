@@ -7,6 +7,8 @@ from sensor_msgs.msg import Image
 from cv_bridge import CvBridge
 import cv2
 import numpy as np
+from message_filters import ApproximateTimeSynchronizer, Subscriber
+from rclpy.qos import QoSProfile, ReliabilityPolicy, HistoryPolicy
 
 class CameraImageDisplay(Node):
     def __init__(self):
@@ -15,68 +17,76 @@ class CameraImageDisplay(Node):
         # CvBridgeのインスタンスを作成
         self.bridge = CvBridge()
 
-        # camera_01の画像トピックをサブスクライブ
-        self.color_sub_01 = self.create_subscription(Image, '/camera_01/color/image_raw', self.color_callback_01, 10)
-        self.depth_sub_01 = self.create_subscription(Image, '/camera_01/depth/image_raw', self.depth_callback_01, 10)  # 赤外線代わりに深度画像を使用
-        # camera_02の画像トピックをサブスクライブ
-        self.color_sub_02 = self.create_subscription(Image, '/camera_02/color/image_raw', self.color_callback_02, 10)
-        self.depth_sub_02 = self.create_subscription(Image, '/camera_02/depth/image_raw', self.depth_callback_02, 10)  # 赤外線代わりに深度画像を使用
+        # QoS設定をbest_effortに変更
+        qos_profile = QoSProfile(
+            reliability=ReliabilityPolicy.BEST_EFFORT,
+            history=HistoryPolicy.KEEP_LAST,
+            depth=10
+        )
+
+        # FRONTカメラの画像トピックをサブスクライブ
+        front_color_sub = Subscriber(self, Image, '/front_camera/color/image_raw', qos_profile=qos_profile)
+        front_depth_sub = Subscriber(self, Image, '/front_camera/depth/image_raw', qos_profile=qos_profile)
+        
+        # TOPカメラの画像トピックをサブスクライブ
+        top_color_sub = Subscriber(self, Image, '/top_camera/color/image_raw', qos_profile=qos_profile)
+        top_depth_sub = Subscriber(self, Image, '/top_camera/depth/image_raw', qos_profile=qos_profile)
+
+        # FRONTカメラのメッセージ同期
+        self.front_sync = ApproximateTimeSynchronizer(
+            [front_color_sub, front_depth_sub],
+            queue_size=10,
+            slop=0.1
+        )
+        self.front_sync.registerCallback(self.front_camera_callback)
+
+        # TOPカメラのメッセージ同期
+        self.top_sync = ApproximateTimeSynchronizer(
+            [top_color_sub, top_depth_sub],
+            queue_size=10,
+            slop=0.1
+        )
+        self.top_sync.registerCallback(self.top_camera_callback)
 
         # ウィンドウ名を設定
-        cv2.namedWindow("Camera 01 Color", cv2.WINDOW_NORMAL)
-        cv2.namedWindow("Camera 01 Depth", cv2.WINDOW_NORMAL)
-        cv2.namedWindow("Camera 02 Color", cv2.WINDOW_NORMAL)
-        cv2.namedWindow("Camera 02 Depth", cv2.WINDOW_NORMAL)
+        cv2.namedWindow("FRONT Camera Color", cv2.WINDOW_NORMAL)
+        cv2.namedWindow("FRONT Camera Depth", cv2.WINDOW_NORMAL)
+        cv2.namedWindow("TOP Camera Color", cv2.WINDOW_NORMAL)
+        cv2.namedWindow("TOP Camera Depth", cv2.WINDOW_NORMAL)
 
-    def color_callback_01(self, msg):
-        """camera_01 カラー画像のコールバック"""
+    def front_camera_callback(self, color_msg, depth_msg):
         try:
-            color_image = self.bridge.imgmsg_to_cv2(msg, desired_encoding='bgr8')
-            cv2.imshow("Camera 01 Color", color_image)
+            # FRONTカメラのカラー画像処理
+            color_image = self.bridge.imgmsg_to_cv2(color_msg, desired_encoding='bgr8')
+            cv2.imshow("FRONT Camera Color", color_image)
+            
+            # FRONTカメラの深度画像処理
+            depth_image = self.bridge.imgmsg_to_cv2(depth_msg, desired_encoding='passthrough')
+            depth_image_normalized = cv2.normalize(depth_image, None, 0, 255, cv2.NORM_MINMAX)
+            depth_image_8bit = cv2.convertScaleAbs(depth_image_normalized)
+            depth_image_colored = cv2.applyColorMap(depth_image_8bit, cv2.COLORMAP_JET)
+            cv2.imshow("FRONT Camera Depth", depth_image_colored)
+            
             cv2.waitKey(1)
         except Exception as e:
-            self.get_logger().error(f"Error processing camera 01 color image: {e}")
+            self.get_logger().error(f"Error processing FRONT camera images: {e}")
 
-    def depth_callback_01(self, msg):
-        """camera_01 深度画像のコールバック（赤外線代わり）"""
+    def top_camera_callback(self, color_msg, depth_msg):
         try:
-            # 深度画像を8ビット画像に変換（通常は16ビットなので正規化）
-            depth_image = self.bridge.imgmsg_to_cv2(msg, desired_encoding='passthrough')
-            depth_image_normalized = cv2.normalize(depth_image, None, 0, 255, cv2.NORM_MINMAX)  # 0〜255の範囲に正規化
-            depth_image_8bit = cv2.convertScaleAbs(depth_image_normalized)  # 8ビットに変換
-
-            # カラーマッピングを適用してカラーに変換
-            depth_image_colored = cv2.applyColorMap(depth_image_8bit, cv2.COLORMAP_JET)  # JETカラーマップ（赤から青に変化）
-
-            cv2.imshow("Camera 01 Depth", depth_image_8bit)  # カラー化した深度画像を表示
+            # TOPカメラのカラー画像処理
+            color_image = self.bridge.imgmsg_to_cv2(color_msg, desired_encoding='bgr8')
+            cv2.imshow("TOP Camera Color", color_image)
+            
+            # TOPカメラの深度画像処理
+            depth_image = self.bridge.imgmsg_to_cv2(depth_msg, desired_encoding='passthrough')
+            depth_image_normalized = cv2.normalize(depth_image, None, 0, 255, cv2.NORM_MINMAX)
+            depth_image_8bit = cv2.convertScaleAbs(depth_image_normalized)
+            depth_image_colored = cv2.applyColorMap(depth_image_8bit, cv2.COLORMAP_JET)
+            cv2.imshow("TOP Camera Depth", depth_image_colored)
+            
             cv2.waitKey(1)
         except Exception as e:
-            self.get_logger().error(f"Error processing camera 01 depth image: {e}")
-
-    def color_callback_02(self, msg):
-        """camera_02 カラー画像のコールバック"""
-        try:
-            color_image = self.bridge.imgmsg_to_cv2(msg, desired_encoding='bgr8')
-            cv2.imshow("Camera 02 Color", color_image)
-            cv2.waitKey(1)
-        except Exception as e:
-            self.get_logger().error(f"Error processing camera 02 color image: {e}")
-
-    def depth_callback_02(self, msg):
-        """camera_02 深度画像のコールバック（赤外線代わり）"""
-        try:
-            # 深度画像を8ビット画像に変換（通常は16ビットなので正規化）
-            depth_image = self.bridge.imgmsg_to_cv2(msg, desired_encoding='passthrough')
-            depth_image_normalized = cv2.normalize(depth_image, None, 0, 255, cv2.NORM_MINMAX)  # 0〜255の範囲に正規化
-            depth_image_8bit = cv2.convertScaleAbs(depth_image_normalized)  # 8ビットに変換
-
-            # カラーマッピングを適用してカラーに変換
-            depth_image_colored = cv2.applyColorMap(depth_image_8bit, cv2.COLORMAP_JET)  # JETカラーマップ（赤から青に変化）
-
-            cv2.imshow("Camera 02 Depth", depth_image_8bit)  # カラー化した深度画像を表示
-            cv2.waitKey(1)
-        except Exception as e:
-            self.get_logger().error(f"Error processing camera 02 depth image: {e}")
+            self.get_logger().error(f"Error processing TOP camera images: {e}")
 
 def main(args=None):
     rclpy.init(args=args)
