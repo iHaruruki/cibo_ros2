@@ -40,6 +40,7 @@ class UnifiedCameraNode(Node):
         self.declare_parameter('camera_01_camera_frame', 'camera_01_depth_optical_frame')
         self.declare_parameter('camera_01_publish_face_tf', False)
         self.declare_parameter('camera_01_tf_rate_hz', 30.0)
+        self.declare_parameter('camera_01_overlay_alpha', 0.3)
 
         # ==== Parameters for Camera 02 (Top) ====
         self.declare_parameter('camera_02_min_detection_confidence', 0.6)
@@ -51,6 +52,7 @@ class UnifiedCameraNode(Node):
         self.declare_parameter('camera_02_roi_height', 300)
         self.declare_parameter('camera_02_camera_frame', 'camera_02_depth_optical_frame')
         self.declare_parameter('camera_02_tf_rate_hz', 30.0)
+        self.declare_parameter('camera_02_overlay_alpha', 0.3)
 
         # Read Camera 01 Parameters
         self.cam01_config = {
@@ -64,6 +66,7 @@ class UnifiedCameraNode(Node):
             'camera_frame': self.get_parameter('camera_01_camera_frame').value,
             'publish_face_tf': bool(self.get_parameter('camera_01_publish_face_tf').value),
             'tf_rate_hz': float(self.get_parameter('camera_01_tf_rate_hz').value),
+            'overlay_alpha': float(self.get_parameter('camera_01_overlay_alpha').value),
         }
 
         # Read Camera 02 Parameters
@@ -77,6 +80,7 @@ class UnifiedCameraNode(Node):
             'roi_height': int(self.get_parameter('camera_02_roi_height').value),
             'camera_frame': self.get_parameter('camera_02_camera_frame').value,
             'tf_rate_hz': float(self.get_parameter('camera_02_tf_rate_hz').value),
+            'overlay_alpha': float(self.get_parameter('camera_02_overlay_alpha').value),
         }
 
         # ==== MediaPipe Initializations ====
@@ -109,16 +113,19 @@ class UnifiedCameraNode(Node):
 
         # ==== Publishers ====
         # Camera 01
-        self.cam01_annotated_pub = self.create_publisher(Image, '/unified_camera/camera_01/annotated_image', 10)
-        self.cam01_pose_landmarks_pub = self.create_publisher(Float32MultiArray, '/unified_camera/camera_01/pose_landmarks', 10)
-        self.cam01_face_landmarks_pub = self.create_publisher(Float32MultiArray, '/unified_camera/camera_01/face_landmarks', 10)
-        self.cam01_left_hand_landmarks_pub = self.create_publisher(Float32MultiArray, '/unified_camera/camera_01/left_hand_landmarks', 10)
-        self.cam01_right_hand_landmarks_pub = self.create_publisher(Float32MultiArray, '/unified_camera/camera_01/right_hand_landmarks', 10)
+        self.cam01_annotated_pub = self.create_publisher(Image, '/front_camera/annotated_image', 10)
+        self.cam01_overlay_pub = self.create_publisher(Image, '/front_camera/overlay_image', 10)
+        self.cam01_pose_landmarks_pub = self.create_publisher(Float32MultiArray, '/front_camera/pose_landmarks', 10)
+        self.cam01_face_landmarks_pub = self.create_publisher(Float32MultiArray, '/front_camera/face_landmarks', 10)
+        self.cam01_left_hand_landmarks_pub = self.create_publisher(Float32MultiArray, '/front_camera/left_hand_landmarks', 10)
+        self.cam01_right_hand_landmarks_pub = self.create_publisher(Float32MultiArray, '/front_camera/right_hand_landmarks', 10)
 
-        # Camera 02
-        self.cam02_annotated_pub = self.create_publisher(Image, '/unified_camera/camera_02/annotated_image', 10)
-        self.cam02_left_hand_landmarks_pub = self.create_publisher(Float32MultiArray, '/unified_camera/camera_02/left_hand_landmarks', 10)
-        self.cam02_right_hand_landmarks_pub = self.create_publisher(Float32MultiArray, '/unified_camera/camera_02/right_hand_landmarks', 10)
+        # top_camera
+        self.cam02_annotated_pub = self.create_publisher(Image, '/top_cameraannotated_image', 10)
+        self.cam02_overlay_pub = self.create_publisher(Image, '/top_camera/overlay_image', 10)
+        self.cam02_left_hand_landmarks_pub = self.create_publisher(Float32MultiArray, '/top_camera/left_hand_landmarks', 10)
+        self.cam02_right_hand_landmarks_pub = self.create_publisher(Float32MultiArray, '/top_camera/right_hand_landmarks', 10)
+
 
         # ==== TF Broadcaster ====
         self.tf_broadcaster = TransformBroadcaster(self)
@@ -127,26 +134,30 @@ class UnifiedCameraNode(Node):
 
         # ==== Subscribers with message synchronization ====
         # Camera 01 subscribers (compressed topics)
-        cam01_color_sub = message_filters.Subscriber(self, Image, '/camera_01/color/image_raw/compressed', qos_profile=10)
-        cam01_depth_sub = message_filters.Subscriber(self, Image, '/camera_01/depth/image_raw/compressed', qos_profile=10)
-        cam01_depth_info_sub = message_filters.Subscriber(self, CameraInfo, '/camera_01/depth/camera_info', qos_profile=10)
+        cam01_color_sub = message_filters.Subscriber(self, Image, '/front_camera/color/image_raw/compressed', qos_profile=10)
+        cam01_depth_sub = message_filters.Subscriber(self, Image, '/front_camera/depth/image_raw/compressedDepth', qos_profile=10)
+        cam01_color_info_sub = message_filters.Subscriber(self, CameraInfo, '/front_camera/color/camera_info', qos_profile=10)
+        cam01_depth_info_sub = message_filters.Subscriber(self, CameraInfo, '/front_camera/depth/camera_info', qos_profile=10)
 
         cam01_ats = message_filters.ApproximateTimeSynchronizer(
-            [cam01_color_sub, cam01_depth_sub, cam01_depth_info_sub], queue_size=20, slop=0.05
+            [cam01_color_sub, cam01_depth_sub, cam01_color_info_sub, cam01_depth_info_sub], 
+            queue_size=20, slop=0.05
         )
         cam01_ats.registerCallback(self.cam01_synced_callback)
 
         # Camera 02 subscribers (compressed topics)
-        cam02_color_sub = message_filters.Subscriber(self, Image, '/camera_02/color/image_raw/compressed', qos_profile=10)
-        cam02_depth_sub = message_filters.Subscriber(self, Image, '/camera_02/depth/image_raw/compressed', qos_profile=10)
-        cam02_depth_info_sub = message_filters.Subscriber(self, CameraInfo, '/camera_02/depth/camera_info', qos_profile=10)
+        cam02_color_sub = message_filters.Subscriber(self, Image, '/top_camera/color/image_raw/compressed', qos_profile=10)
+        cam02_depth_sub = message_filters.Subscriber(self, Image, '/top_camera/depth/image_raw/compressedDepth', qos_profile=10)
+        cam02_color_info_sub = message_filters.Subscriber(self, CameraInfo, '/top_camera/color/camera_info', qos_profile=10)
+        cam02_depth_info_sub = message_filters.Subscriber(self, CameraInfo, '/top_camera/depth/camera_info', qos_profile=10)
 
         cam02_ats = message_filters.ApproximateTimeSynchronizer(
-            [cam02_color_sub, cam02_depth_sub, cam02_depth_info_sub], queue_size=20, slop=0.05
+            [cam02_color_sub, cam02_depth_sub, cam02_color_info_sub, cam02_depth_info_sub], 
+            queue_size=20, slop=0.05
         )
         cam02_ats.registerCallback(self.cam02_synced_callback)
 
-        self.get_logger().info('Unified Camera Node initialized (Camera 01 + Camera 02 with compressed topics & synchronization)')
+        self.get_logger().info('Unified Camera Node initialized (Camera 01 + Camera 02 with color-depth overlay)')
 
     # ====================== GUI Setup ======================
     def setup_opencv_windows(self):
@@ -223,7 +234,8 @@ class UnifiedCameraNode(Node):
                 self.get_logger().info(f'Camera 02 ROI set: x={self.cam02_config["roi_x"]}, y={self.cam02_config["roi_y"]}, w={self.cam02_config["roi_width"]}, h={self.cam02_config["roi_height"]}')
 
     # ====================== Camera 01 (Front) Callback ======================
-    def cam01_synced_callback(self, color_msg: Image, depth_msg: Image, depth_info: CameraInfo):
+    def cam01_synced_callback(self, color_msg: Image, depth_msg: Image, 
+                              color_info: CameraInfo, depth_info: CameraInfo):
         try:
             color = self.bridge.imgmsg_to_cv2(color_msg, "bgr8")
         except Exception as e:
@@ -231,10 +243,11 @@ class UnifiedCameraNode(Node):
             return
 
         try:
-            depth = self.bridge.imgmsg_to_cv2(depth_msg)
-            if depth_msg.encoding in ('16UC1', 'mono16'):
+            depth = self.bridge.imgmsg_to_cv2(depth_msg, desired_encoding="passthrough")
+            # Normalize depth to meters
+            if depth_msg.encoding == '16UC1':
                 depth_m = depth.astype(np.float32) / 1000.0
-            elif depth_msg.encoding in ('32FC1'):
+            elif depth_msg.encoding == '32FC1':
                 depth_m = depth.astype(np.float32)
             else:
                 depth_m = depth.astype(np.float32)
@@ -242,12 +255,24 @@ class UnifiedCameraNode(Node):
             self.get_logger().error(f'Camera 01 depth bridge error: {e}')
             return
 
+        # Resize depth to match color dimensions
+        if depth_m.shape != color.shape[:2]:
+            depth_m = cv2.resize(depth_m, (color.shape[1], color.shape[0]), interpolation=cv2.INTER_NEAREST)
+
         annotated_image, pose_lm, face_lm, lhand_lm, rhand_lm, roi_ctx = self.process_camera_01(color)
+
+        # Create overlay image
+        overlay_image = self.overlay_depth_on_color(annotated_image, depth_m, self.cam01_config['overlay_alpha'])
 
         # Publish annotated image
         ann = self.bridge.cv2_to_imgmsg(annotated_image, "bgr8")
         ann.header = color_msg.header
         self.cam01_annotated_pub.publish(ann)
+
+        # Publish overlay image
+        ovr = self.bridge.cv2_to_imgmsg(overlay_image, "bgr8")
+        ovr.header = color_msg.header
+        self.cam01_overlay_pub.publish(ovr)
 
         # Publish landmarks
         self._publish_array(self.cam01_pose_landmarks_pub, pose_lm)
@@ -303,7 +328,7 @@ class UnifiedCameraNode(Node):
             broadcast_set(face_lm, 'camera_01_face')
 
         # Display
-        disp = annotated_image.copy()
+        disp = overlay_image.copy()
         if self.cam01_config['roi_enabled'] and self.cam01_config['roi_width'] > 0 and self.cam01_config['roi_height'] > 0:
             cv2.rectangle(disp, (self.cam01_config['roi_x'], self.cam01_config['roi_y']),
                           (self.cam01_config['roi_x'] + self.cam01_config['roi_width'], self.cam01_config['roi_y'] + self.cam01_config['roi_height']), (0, 255, 0), 2)
@@ -327,7 +352,8 @@ class UnifiedCameraNode(Node):
             self.get_logger().info('Camera 01 ROI reset')
 
     # ====================== Camera 02 (Top) Callback ======================
-    def cam02_synced_callback(self, color_msg: Image, depth_msg: Image, depth_info: CameraInfo):
+    def cam02_synced_callback(self, color_msg: Image, depth_msg: Image, 
+                              color_info: CameraInfo, depth_info: CameraInfo):
         try:
             color = self.bridge.imgmsg_to_cv2(color_msg, "bgr8")
         except Exception as e:
@@ -335,10 +361,11 @@ class UnifiedCameraNode(Node):
             return
 
         try:
-            depth = self.bridge.imgmsg_to_cv2(depth_msg)
-            if depth_msg.encoding in ('16UC1', 'mono16'):
+            depth = self.bridge.imgmsg_to_cv2(depth_msg, desired_encoding="passthrough")
+            # Normalize depth to meters
+            if depth_msg.encoding == '16UC1':
                 depth_m = depth.astype(np.float32) / 1000.0
-            elif depth_msg.encoding in ('32FC1'):
+            elif depth_msg.encoding == '32FC1':
                 depth_m = depth.astype(np.float32)
             else:
                 depth_m = depth.astype(np.float32)
@@ -346,12 +373,24 @@ class UnifiedCameraNode(Node):
             self.get_logger().error(f'Camera 02 depth bridge error: {e}')
             return
 
+        # Resize depth to match color dimensions
+        if depth_m.shape != color.shape[:2]:
+            depth_m = cv2.resize(depth_m, (color.shape[1], color.shape[0]), interpolation=cv2.INTER_NEAREST)
+
         annotated_image, lhand_lm, rhand_lm, roi_ctx = self.process_camera_02(color)
+
+        # Create overlay image
+        overlay_image = self.overlay_depth_on_color(annotated_image, depth_m, self.cam02_config['overlay_alpha'])
 
         # Publish annotated image
         ann = self.bridge.cv2_to_imgmsg(annotated_image, "bgr8")
         ann.header = color_msg.header
         self.cam02_annotated_pub.publish(ann)
+
+        # Publish overlay image
+        ovr = self.bridge.cv2_to_imgmsg(overlay_image, "bgr8")
+        ovr.header = color_msg.header
+        self.cam02_overlay_pub.publish(ovr)
 
         # Publish landmarks
         self._publish_array(self.cam02_left_hand_landmarks_pub, lhand_lm)
@@ -401,7 +440,7 @@ class UnifiedCameraNode(Node):
             broadcast_set(rhand_lm, 'camera_02_right_hand')
 
         # Display
-        disp = annotated_image.copy()
+        disp = overlay_image.copy()
         if self.cam02_config['roi_enabled'] and self.cam02_config['roi_width'] > 0 and self.cam02_config['roi_height'] > 0:
             cv2.rectangle(disp, (self.cam02_config['roi_x'], self.cam02_config['roi_y']),
                           (self.cam02_config['roi_x'] + self.cam02_config['roi_width'], self.cam02_config['roi_y'] + self.cam02_config['roi_height']), (0, 255, 0), 2)
@@ -574,6 +613,19 @@ class UnifiedCameraNode(Node):
         if vals.size == 0:
             return np.nan
         return float(np.median(vals))
+
+    def overlay_depth_on_color(self, color, depth_m, alpha=0.3):
+        """Overlay depth visualization on color image"""
+        # Normalize depth to 0-255 range (adjust factor as needed)
+        depth_normalized = np.clip((depth_m / 3.0) * 255, 0, 255).astype(np.uint8)
+        
+        # Apply colormap to depth
+        depth_color = cv2.applyColorMap(depth_normalized, cv2.COLORMAP_JET)
+        
+        # Blend color and depth visualization
+        overlaid = cv2.addWeighted(color, 1.0 - alpha, depth_color, alpha, 0)
+        
+        return overlaid
 
     def extract_pose_landmarks(self, results, width, height, roi_offset, roi_bbox):
         landmarks = []
