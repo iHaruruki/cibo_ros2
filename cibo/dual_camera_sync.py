@@ -4,6 +4,7 @@
 
 import rclpy
 from rclpy.node import Node
+from rclpy.qos import QoSProfile, ReliabilityPolicy, HistoryPolicy
 from sensor_msgs.msg import Image, CameraInfo
 from std_msgs.msg import Float32MultiArray
 from cv_bridge import CvBridge
@@ -21,6 +22,13 @@ class UnifiedCameraNode(Node):
 
         # ==== CV Bridge ====
         self.bridge = CvBridge()
+
+        # ==== QoS Profile (best_effort) ====
+        self.qos_profile = QoSProfile(
+            reliability=ReliabilityPolicy.BEST_EFFORT,
+            history=HistoryPolicy.KEEP_LAST,
+            depth=10
+        )
 
         # ==== MediaPipe ====
         self.mp_drawing = mp.solutions.drawing_utils
@@ -112,20 +120,19 @@ class UnifiedCameraNode(Node):
         self.setup_opencv_windows()
 
         # ==== Publishers ====
-        # Camera 01
-        self.cam01_annotated_pub = self.create_publisher(Image, '/front_camera/annotated_image', 10)
-        self.cam01_overlay_pub = self.create_publisher(Image, '/front_camera/overlay_image', 10)
-        self.cam01_pose_landmarks_pub = self.create_publisher(Float32MultiArray, '/front_camera/pose_landmarks', 10)
-        self.cam01_face_landmarks_pub = self.create_publisher(Float32MultiArray, '/front_camera/face_landmarks', 10)
-        self.cam01_left_hand_landmarks_pub = self.create_publisher(Float32MultiArray, '/front_camera/left_hand_landmarks', 10)
-        self.cam01_right_hand_landmarks_pub = self.create_publisher(Float32MultiArray, '/front_camera/right_hand_landmarks', 10)
+        # Camera 01 (Front)
+        self.cam01_annotated_pub = self.create_publisher(Image, '/front_camera/annotated_image', self.qos_profile)
+        self.cam01_overlay_pub = self.create_publisher(Image, '/front_camera/overlay_image', self.qos_profile)
+        self.cam01_pose_landmarks_pub = self.create_publisher(Float32MultiArray, '/front_camera/pose_landmarks', self.qos_profile)
+        self.cam01_face_landmarks_pub = self.create_publisher(Float32MultiArray, '/front_camera/face_landmarks', self.qos_profile)
+        self.cam01_left_hand_landmarks_pub = self.create_publisher(Float32MultiArray, '/front_camera/left_hand_landmarks', self.qos_profile)
+        self.cam01_right_hand_landmarks_pub = self.create_publisher(Float32MultiArray, '/front_camera/right_hand_landmarks', self.qos_profile)
 
-        # top_camera
-        self.cam02_annotated_pub = self.create_publisher(Image, '/top_cameraannotated_image', 10)
-        self.cam02_overlay_pub = self.create_publisher(Image, '/top_camera/overlay_image', 10)
-        self.cam02_left_hand_landmarks_pub = self.create_publisher(Float32MultiArray, '/top_camera/left_hand_landmarks', 10)
-        self.cam02_right_hand_landmarks_pub = self.create_publisher(Float32MultiArray, '/top_camera/right_hand_landmarks', 10)
-
+        # Camera 02 (Top)
+        self.cam02_annotated_pub = self.create_publisher(Image, '/top_camera/annotated_image', self.qos_profile)
+        self.cam02_overlay_pub = self.create_publisher(Image, '/top_camera/overlay_image', self.qos_profile)
+        self.cam02_left_hand_landmarks_pub = self.create_publisher(Float32MultiArray, '/top_camera/left_hand_landmarks', self.qos_profile)
+        self.cam02_right_hand_landmarks_pub = self.create_publisher(Float32MultiArray, '/top_camera/right_hand_landmarks', self.qos_profile)
 
         # ==== TF Broadcaster ====
         self.tf_broadcaster = TransformBroadcaster(self)
@@ -133,11 +140,11 @@ class UnifiedCameraNode(Node):
         self.cam02_last_tf_time = self.get_clock().now()
 
         # ==== Subscribers with message synchronization ====
-        # Camera 01 subscribers (compressed topics)
-        cam01_color_sub = message_filters.Subscriber(self, Image, '/front_camera/color/image_raw/compressed', qos_profile=10)
-        cam01_depth_sub = message_filters.Subscriber(self, Image, '/front_camera/depth/image_raw/compressedDepth', qos_profile=10)
-        cam01_color_info_sub = message_filters.Subscriber(self, CameraInfo, '/front_camera/color/camera_info', qos_profile=10)
-        cam01_depth_info_sub = message_filters.Subscriber(self, CameraInfo, '/front_camera/depth/camera_info', qos_profile=10)
+        # Camera 01 subscribers (compressed topics, best_effort QoS)
+        cam01_color_sub = message_filters.Subscriber(self, Image, '/front_camera/color/image_raw/compressed', qos_profile=self.qos_profile)
+        cam01_depth_sub = message_filters.Subscriber(self, Image, '/front_camera/depth/image_raw/compressedDepth', qos_profile=self.qos_profile)
+        cam01_color_info_sub = message_filters.Subscriber(self, CameraInfo, '/front_camera/color/camera_info', qos_profile=self.qos_profile)
+        cam01_depth_info_sub = message_filters.Subscriber(self, CameraInfo, '/front_camera/depth/camera_info', qos_profile=self.qos_profile)
 
         cam01_ats = message_filters.ApproximateTimeSynchronizer(
             [cam01_color_sub, cam01_depth_sub, cam01_color_info_sub, cam01_depth_info_sub], 
@@ -145,11 +152,11 @@ class UnifiedCameraNode(Node):
         )
         cam01_ats.registerCallback(self.cam01_synced_callback)
 
-        # Camera 02 subscribers (compressed topics)
-        cam02_color_sub = message_filters.Subscriber(self, Image, '/top_camera/color/image_raw/compressed', qos_profile=10)
-        cam02_depth_sub = message_filters.Subscriber(self, Image, '/top_camera/depth/image_raw/compressedDepth', qos_profile=10)
-        cam02_color_info_sub = message_filters.Subscriber(self, CameraInfo, '/top_camera/color/camera_info', qos_profile=10)
-        cam02_depth_info_sub = message_filters.Subscriber(self, CameraInfo, '/top_camera/depth/camera_info', qos_profile=10)
+        # Camera 02 subscribers (compressed topics, best_effort QoS)
+        cam02_color_sub = message_filters.Subscriber(self, Image, '/top_camera/color/image_raw/compressed', qos_profile=self.qos_profile)
+        cam02_depth_sub = message_filters.Subscriber(self, Image, '/top_camera/depth/image_raw/compressedDepth', qos_profile=self.qos_profile)
+        cam02_color_info_sub = message_filters.Subscriber(self, CameraInfo, '/top_camera/color/camera_info', qos_profile=self.qos_profile)
+        cam02_depth_info_sub = message_filters.Subscriber(self, CameraInfo, '/top_camera/depth/camera_info', qos_profile=self.qos_profile)
 
         cam02_ats = message_filters.ApproximateTimeSynchronizer(
             [cam02_color_sub, cam02_depth_sub, cam02_color_info_sub, cam02_depth_info_sub], 
@@ -157,23 +164,23 @@ class UnifiedCameraNode(Node):
         )
         cam02_ats.registerCallback(self.cam02_synced_callback)
 
-        self.get_logger().info('Unified Camera Node initialized (Camera 01 + Camera 02 with color-depth overlay)')
+        self.get_logger().info('Unified Camera Node initialized (Front + Top cameras with color-depth overlay & best_effort QoS)')
 
     # ====================== GUI Setup ======================
     def setup_opencv_windows(self):
         try:
-            cv2.namedWindow('Camera 01 (Front) - ROI Selection', cv2.WINDOW_AUTOSIZE)
-            cv2.setMouseCallback('Camera 01 (Front) - ROI Selection', self.mouse_callback_cam01)
-            self.get_logger().info('OpenCV window setup for Camera 01 ROI selection')
+            cv2.namedWindow('Front Camera - ROI Selection', cv2.WINDOW_AUTOSIZE)
+            cv2.setMouseCallback('Front Camera - ROI Selection', self.mouse_callback_cam01)
+            self.get_logger().info('OpenCV window setup for Front Camera ROI selection')
         except Exception as e:
-            self.get_logger().error(f'Failed to setup Camera 01 window: {str(e)}')
+            self.get_logger().error(f'Failed to setup Front Camera window: {str(e)}')
 
         try:
-            cv2.namedWindow('Camera 02 (Top) - ROI Selection', cv2.WINDOW_AUTOSIZE)
-            cv2.setMouseCallback('Camera 02 (Top) - ROI Selection', self.mouse_callback_cam02)
-            self.get_logger().info('OpenCV window setup for Camera 02 ROI selection')
+            cv2.namedWindow('Top Camera - ROI Selection', cv2.WINDOW_AUTOSIZE)
+            cv2.setMouseCallback('Top Camera - ROI Selection', self.mouse_callback_cam02)
+            self.get_logger().info('OpenCV window setup for Top Camera ROI selection')
         except Exception as e:
-            self.get_logger().error(f'Failed to setup Camera 02 window: {str(e)}')
+            self.get_logger().error(f'Failed to setup Top Camera window: {str(e)}')
 
     def mouse_callback_cam01(self, event, x, y, flags, param):
         if event == cv2.EVENT_LBUTTONDOWN:
@@ -202,7 +209,7 @@ class UnifiedCameraNode(Node):
                     Parameter('camera_01_roi_width', Parameter.Type.INTEGER, self.cam01_config['roi_width']),
                     Parameter('camera_01_roi_height', Parameter.Type.INTEGER, self.cam01_config['roi_height']),
                 ])
-                self.get_logger().info(f'Camera 01 ROI set: x={self.cam01_config["roi_x"]}, y={self.cam01_config["roi_y"]}, w={self.cam01_config["roi_width"]}, h={self.cam01_config["roi_height"]}')
+                self.get_logger().info(f'Front Camera ROI set: x={self.cam01_config["roi_x"]}, y={self.cam01_config["roi_y"]}, w={self.cam01_config["roi_width"]}, h={self.cam01_config["roi_height"]}')
 
     def mouse_callback_cam02(self, event, x, y, flags, param):
         if event == cv2.EVENT_LBUTTONDOWN:
@@ -231,7 +238,7 @@ class UnifiedCameraNode(Node):
                     Parameter('camera_02_roi_width', Parameter.Type.INTEGER, self.cam02_config['roi_width']),
                     Parameter('camera_02_roi_height', Parameter.Type.INTEGER, self.cam02_config['roi_height']),
                 ])
-                self.get_logger().info(f'Camera 02 ROI set: x={self.cam02_config["roi_x"]}, y={self.cam02_config["roi_y"]}, w={self.cam02_config["roi_width"]}, h={self.cam02_config["roi_height"]}')
+                self.get_logger().info(f'Top Camera ROI set: x={self.cam02_config["roi_x"]}, y={self.cam02_config["roi_y"]}, w={self.cam02_config["roi_width"]}, h={self.cam02_config["roi_height"]}')
 
     # ====================== Camera 01 (Front) Callback ======================
     def cam01_synced_callback(self, color_msg: Image, depth_msg: Image, 
@@ -239,7 +246,7 @@ class UnifiedCameraNode(Node):
         try:
             color = self.bridge.imgmsg_to_cv2(color_msg, "bgr8")
         except Exception as e:
-            self.get_logger().error(f'Camera 01 color bridge error: {e}')
+            self.get_logger().error(f'Front Camera color bridge error: {e}')
             return
 
         try:
@@ -252,7 +259,7 @@ class UnifiedCameraNode(Node):
             else:
                 depth_m = depth.astype(np.float32)
         except Exception as e:
-            self.get_logger().error(f'Camera 01 depth bridge error: {e}')
+            self.get_logger().error(f'Front Camera depth bridge error: {e}')
             return
 
         # Resize depth to match color dimensions
@@ -319,13 +326,13 @@ class UnifiedCameraNode(Node):
                 self.tf_broadcaster.sendTransform(t)
 
         if pose_lm:
-            broadcast_set(pose_lm, 'camera_01_pose')
+            broadcast_set(pose_lm, 'front_camera_pose')
         if lhand_lm:
-            broadcast_set(lhand_lm, 'camera_01_left_hand')
+            broadcast_set(lhand_lm, 'front_camera_left_hand')
         if rhand_lm:
-            broadcast_set(rhand_lm, 'camera_01_right_hand')
+            broadcast_set(rhand_lm, 'front_camera_right_hand')
         if self.cam01_config['publish_face_tf'] and face_lm:
-            broadcast_set(face_lm, 'camera_01_face')
+            broadcast_set(face_lm, 'front_camera_face')
 
         # Display
         disp = overlay_image.copy()
@@ -342,14 +349,14 @@ class UnifiedCameraNode(Node):
 
         cv2.putText(disp, 'Drag to select ROI (q: quit, r: reset)', (10, 30),
                     cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 0), 2)
-        cv2.imshow('Camera 01 (Front) - ROI Selection', disp)
+        cv2.imshow('Front Camera - ROI Selection', disp)
         key = cv2.waitKey(1) & 0xFF
         if key == ord('q'):
             cv2.destroyAllWindows()
         elif key == ord('r'):
             self.cam01_config['roi_enabled'] = False
             self.set_parameters([Parameter('camera_01_roi_enabled', Parameter.Type.BOOL, False)])
-            self.get_logger().info('Camera 01 ROI reset')
+            self.get_logger().info('Front Camera ROI reset')
 
     # ====================== Camera 02 (Top) Callback ======================
     def cam02_synced_callback(self, color_msg: Image, depth_msg: Image, 
@@ -357,7 +364,7 @@ class UnifiedCameraNode(Node):
         try:
             color = self.bridge.imgmsg_to_cv2(color_msg, "bgr8")
         except Exception as e:
-            self.get_logger().error(f'Camera 02 color bridge error: {e}')
+            self.get_logger().error(f'Top Camera color bridge error: {e}')
             return
 
         try:
@@ -370,7 +377,7 @@ class UnifiedCameraNode(Node):
             else:
                 depth_m = depth.astype(np.float32)
         except Exception as e:
-            self.get_logger().error(f'Camera 02 depth bridge error: {e}')
+            self.get_logger().error(f'Top Camera depth bridge error: {e}')
             return
 
         # Resize depth to match color dimensions
@@ -435,9 +442,9 @@ class UnifiedCameraNode(Node):
                 self.tf_broadcaster.sendTransform(t)
 
         if lhand_lm:
-            broadcast_set(lhand_lm, 'camera_02_left_hand')
+            broadcast_set(lhand_lm, 'top_camera_left_hand')
         if rhand_lm:
-            broadcast_set(rhand_lm, 'camera_02_right_hand')
+            broadcast_set(rhand_lm, 'top_camera_right_hand')
 
         # Display
         disp = overlay_image.copy()
@@ -454,14 +461,14 @@ class UnifiedCameraNode(Node):
 
         cv2.putText(disp, 'Drag to select ROI (q: quit, r: reset)', (10, 30),
                     cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 0), 2)
-        cv2.imshow('Camera 02 (Top) - ROI Selection', disp)
+        cv2.imshow('Top Camera - ROI Selection', disp)
         key = cv2.waitKey(1) & 0xFF
         if key == ord('q'):
             cv2.destroyAllWindows()
         elif key == ord('r'):
             self.cam02_config['roi_enabled'] = False
             self.set_parameters([Parameter('camera_02_roi_enabled', Parameter.Type.BOOL, False)])
-            self.get_logger().info('Camera 02 ROI reset')
+            self.get_logger().info('Top Camera ROI reset')
 
     # ====================== Processing Methods ======================
     def process_camera_01(self, cv_image):
