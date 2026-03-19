@@ -12,6 +12,7 @@ import numpy as np
 import mediapipe as mp
 from message_filters import ApproximateTimeSynchronizer, Subscriber
 from rclpy.qos import QoSProfile, ReliabilityPolicy, HistoryPolicy
+from rclpy.parameter import Parameter
 
 class UnifiedCameraNode(Node):
     def __init__(self):
@@ -48,6 +49,43 @@ class UnifiedCameraNode(Node):
             min_detection_confidence=0.6,
             min_tracking_confidence=0.6
         )
+
+        # ==== Parameters (ROI設定) ====
+        self.declare_parameter('front_roi_enabled', False)
+        self.declare_parameter('front_roi_x', 0)
+        self.declare_parameter('front_roi_y', 0)
+        self.declare_parameter('front_roi_width', 400)
+        self.declare_parameter('front_roi_height', 300)
+        
+        self.declare_parameter('top_roi_enabled', False)
+        self.declare_parameter('top_roi_x', 0)
+        self.declare_parameter('top_roi_y', 0)
+        self.declare_parameter('top_roi_width', 400)
+        self.declare_parameter('top_roi_height', 300)
+
+        # ROI設定を読み込む
+        self.front_roi_enabled = bool(self.get_parameter('front_roi_enabled').value)
+        self.front_roi_x = int(self.get_parameter('front_roi_x').value)
+        self.front_roi_y = int(self.get_parameter('front_roi_y').value)
+        self.front_roi_width = int(self.get_parameter('front_roi_width').value)
+        self.front_roi_height = int(self.get_parameter('front_roi_height').value)
+        
+        self.top_roi_enabled = bool(self.get_parameter('top_roi_enabled').value)
+        self.top_roi_x = int(self.get_parameter('top_roi_x').value)
+        self.top_roi_y = int(self.get_parameter('top_roi_y').value)
+        self.top_roi_width = int(self.get_parameter('top_roi_width').value)
+        self.top_roi_height = int(self.get_parameter('top_roi_height').value)
+
+        # ==== ROI GUI State ====
+        self.front_dragging = False
+        self.front_start_point = None
+        self.front_end_point = None
+        
+        self.top_dragging = False
+        self.top_start_point = None
+        self.top_end_point = None
+
+        self.setup_opencv_windows()
 
         # QoS設定
         qos_profile = QoSProfile(
@@ -87,14 +125,86 @@ class UnifiedCameraNode(Node):
         self.top_left_hand_pub = self.create_publisher(Float32MultiArray, '/top_camera/left_hand_landmarks', 10)
         self.top_right_hand_pub = self.create_publisher(Float32MultiArray, '/top_camera/right_hand_landmarks', 10)
 
-        # ウィンドウ作成
-        cv2.namedWindow("FRONT Camera", cv2.WINDOW_NORMAL)
-        cv2.namedWindow("TOP Camera", cv2.WINDOW_NORMAL)
-        cv2.resizeWindow("FRONT Camera", 640, 480)
-        cv2.resizeWindow("TOP Camera", 640, 480)
-
         self.frame_count = 0
-        self.get_logger().info('Unified Camera Node initialized')
+        self.get_logger().info('Unified Camera Node initialized with ROI support')
+
+    def setup_opencv_windows(self):
+        """OpenCVウィンドウのセットアップ"""
+        try:
+            cv2.namedWindow("FRONT Camera - ROI Selection", cv2.WINDOW_NORMAL)
+            cv2.setMouseCallback("FRONT Camera - ROI Selection", self.mouse_callback_front)
+            cv2.resizeWindow("FRONT Camera - ROI Selection", 640, 480)
+            self.get_logger().info('Front Camera ROI window setup')
+        except Exception as e:
+            self.get_logger().error(f'Failed to setup Front Camera window: {str(e)}')
+
+        try:
+            cv2.namedWindow("TOP Camera - ROI Selection", cv2.WINDOW_NORMAL)
+            cv2.setMouseCallback("TOP Camera - ROI Selection", self.mouse_callback_top)
+            cv2.resizeWindow("TOP Camera - ROI Selection", 640, 480)
+            self.get_logger().info('Top Camera ROI window setup')
+        except Exception as e:
+            self.get_logger().error(f'Failed to setup Top Camera window: {str(e)}')
+
+    def mouse_callback_front(self, event, x, y, flags, param):
+        """Front Camera ROIマウスコールバック"""
+        if event == cv2.EVENT_LBUTTONDOWN:
+            self.front_dragging = True
+            self.front_start_point = (x, y)
+            self.front_end_point = (x, y)
+        elif event == cv2.EVENT_MOUSEMOVE and self.front_dragging:
+            self.front_end_point = (x, y)
+        elif event == cv2.EVENT_LBUTTONUP:
+            if self.front_dragging and self.front_start_point:
+                self.front_dragging = False
+                self.front_end_point = (x, y)
+                x1 = min(self.front_start_point[0], self.front_end_point[0])
+                y1 = min(self.front_start_point[1], self.front_end_point[1])
+                x2 = max(self.front_start_point[0], self.front_end_point[0])
+                y2 = max(self.front_start_point[1], self.front_end_point[1])
+                self.front_roi_x = x1
+                self.front_roi_y = y1
+                self.front_roi_width = x2 - x1
+                self.front_roi_height = y2 - y1
+                self.front_roi_enabled = True
+                self.set_parameters([
+                    Parameter('front_roi_enabled', Parameter.Type.BOOL, True),
+                    Parameter('front_roi_x', Parameter.Type.INTEGER, self.front_roi_x),
+                    Parameter('front_roi_y', Parameter.Type.INTEGER, self.front_roi_y),
+                    Parameter('front_roi_width', Parameter.Type.INTEGER, self.front_roi_width),
+                    Parameter('front_roi_height', Parameter.Type.INTEGER, self.front_roi_height),
+                ])
+                self.get_logger().info(f'Front ROI set: x={self.front_roi_x}, y={self.front_roi_y}, w={self.front_roi_width}, h={self.front_roi_height}')
+
+    def mouse_callback_top(self, event, x, y, flags, param):
+        """Top Camera ROIマウスコールバック"""
+        if event == cv2.EVENT_LBUTTONDOWN:
+            self.top_dragging = True
+            self.top_start_point = (x, y)
+            self.top_end_point = (x, y)
+        elif event == cv2.EVENT_MOUSEMOVE and self.top_dragging:
+            self.top_end_point = (x, y)
+        elif event == cv2.EVENT_LBUTTONUP:
+            if self.top_dragging and self.top_start_point:
+                self.top_dragging = False
+                self.top_end_point = (x, y)
+                x1 = min(self.top_start_point[0], self.top_end_point[0])
+                y1 = min(self.top_start_point[1], self.top_end_point[1])
+                x2 = max(self.top_start_point[0], self.top_end_point[0])
+                y2 = max(self.top_start_point[1], self.top_end_point[1])
+                self.top_roi_x = x1
+                self.top_roi_y = y1
+                self.top_roi_width = x2 - x1
+                self.top_roi_height = y2 - y1
+                self.top_roi_enabled = True
+                self.set_parameters([
+                    Parameter('top_roi_enabled', Parameter.Type.BOOL, True),
+                    Parameter('top_roi_x', Parameter.Type.INTEGER, self.top_roi_x),
+                    Parameter('top_roi_y', Parameter.Type.INTEGER, self.top_roi_y),
+                    Parameter('top_roi_width', Parameter.Type.INTEGER, self.top_roi_width),
+                    Parameter('top_roi_height', Parameter.Type.INTEGER, self.top_roi_height),
+                ])
+                self.get_logger().info(f'Top ROI set: x={self.top_roi_x}, y={self.top_roi_y}, w={self.top_roi_width}, h={self.top_roi_height}')
 
     def decompress_color_image(self, compressed_msg):
         """圧縮カラー画像をデコードする"""
@@ -140,13 +250,30 @@ class UnifiedCameraNode(Node):
             self.publish_landmarks(self.top_left_hand_pub, top_left_hand)
             self.publish_landmarks(self.top_right_hand_pub, top_right_hand)
 
-            # ==== Display ====
-            cv2.imshow("FRONT Camera", front_annotated)
-            cv2.imshow("TOP Camera", top_annotated)
+            # ==== Display with ROI ====
+            self.display_with_roi(front_annotated, "FRONT Camera - ROI Selection", 
+                                  self.front_roi_enabled, self.front_roi_x, self.front_roi_y, 
+                                  self.front_roi_width, self.front_roi_height,
+                                  self.front_dragging, self.front_start_point, self.front_end_point)
+            
+            self.display_with_roi(top_annotated, "TOP Camera - ROI Selection",
+                                  self.top_roi_enabled, self.top_roi_x, self.top_roi_y,
+                                  self.top_roi_width, self.top_roi_height,
+                                  self.top_dragging, self.top_start_point, self.top_end_point)
 
             key = cv2.waitKey(1) & 0xFF
             if key == ord('q'):
                 cv2.destroyAllWindows()
+            elif key == ord('r'):
+                # Front ROI リセット
+                self.front_roi_enabled = False
+                self.set_parameters([Parameter('front_roi_enabled', Parameter.Type.BOOL, False)])
+                self.get_logger().info('Front ROI reset')
+            elif key == ord('t'):
+                # Top ROI リセット
+                self.top_roi_enabled = False
+                self.set_parameters([Parameter('top_roi_enabled', Parameter.Type.BOOL, False)])
+                self.get_logger().info('Top ROI reset')
 
             if self.frame_count % 60 == 0:
                 self.get_logger().info(f"Processed {self.frame_count} frames")
@@ -154,12 +281,54 @@ class UnifiedCameraNode(Node):
         except Exception as e:
             self.get_logger().error(f"Error in camera callback: {e}")
 
+    def display_with_roi(self, image, window_name, roi_enabled, roi_x, roi_y, roi_width, roi_height,
+                         dragging, start_point, end_point):
+        """ROI表示付きで画像を表示"""
+        disp = image.copy()
+        
+        # ROIが有効な場合、矩形を描画
+        if roi_enabled and roi_width > 0 and roi_height > 0:
+            cv2.rectangle(disp, (roi_x, roi_y),
+                          (roi_x + roi_width, roi_y + roi_height), (0, 255, 0), 2)
+            cv2.putText(disp, 'ROI', (roi_x, roi_y - 10),
+                        cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 0), 2)
+        
+        # ドラッグ中の矩形を描画
+        if dragging and start_point and end_point:
+            cv2.rectangle(disp, start_point, end_point, (255, 0, 0), 2)
+            cv2.putText(disp, 'Selecting ROI...',
+                        (start_point[0], start_point[1] - 10),
+                        cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 0, 0), 2)
+        
+        # ガイドテキスト
+        cv2.putText(disp, 'Drag to select ROI (q: quit, r/t: reset)', (10, 30),
+                    cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 0), 2)
+        
+        cv2.imshow(window_name, disp)
+
     def process_front_camera(self, cv_image):
-        """Front Camera: Holistic + Face Mesh"""
+        """Front Camera: Holistic + Face Mesh with ROI support"""
         height, width = cv_image.shape[:2]
         
+        # ROI cropping
+        if self.front_roi_enabled and self.front_roi_width > 0 and self.front_roi_height > 0:
+            roi_x = int(np.clip(self.front_roi_x, 0, width-1))
+            roi_y = int(np.clip(self.front_roi_y, 0, height-1))
+            roi_x2 = int(np.clip(roi_x + self.front_roi_width, 0, width))
+            roi_y2 = int(np.clip(roi_y + self.front_roi_height, 0, height))
+            processing_image = cv_image[roi_y:roi_y2, roi_x:roi_x2]
+            roi_offset = (roi_x, roi_y)
+            roi_bbox = (roi_x, roi_y, roi_x2, roi_y2)
+        else:
+            processing_image = cv_image
+            roi_offset = (0, 0)
+            roi_x = roi_y = 0
+            roi_x2 = width
+            roi_y2 = height
+            roi_bbox = (0, 0, width, height)
+        
         # BGR→RGB
-        image_rgb = cv2.cvtColor(cv_image, cv2.COLOR_BGR2RGB)
+        image_rgb = cv2.cvtColor(processing_image, cv2.COLOR_BGR2RGB)
         image_rgb.flags.writeable = False
 
         holistic_results = self.holistic.process(image_rgb)
@@ -204,19 +373,43 @@ class UnifiedCameraNode(Node):
                     landmark_drawing_spec=None,
                     connection_drawing_spec=self.mp_drawing_styles.get_default_face_mesh_iris_connections_style())
 
-        # Extract landmarks
-        pose_lm = self.extract_pose_landmarks(holistic_results, width, height)
-        face_lm = self.extract_face_landmarks(face_results, width, height)
-        left_hand = self.extract_hand_landmarks(holistic_results.left_hand_landmarks, width, height)
-        right_hand = self.extract_hand_landmarks(holistic_results.right_hand_landmarks, width, height)
+        # Stitch back into full image if ROI
+        if self.front_roi_enabled and self.front_roi_width > 0 and self.front_roi_height > 0:
+            full_annotated = cv_image.copy()
+            full_annotated[roi_y:roi_y2, roi_x:roi_x2] = annotated
+        else:
+            full_annotated = annotated
 
-        return annotated, pose_lm, face_lm, left_hand, right_hand
+        # Extract landmarks
+        pose_lm = self.extract_pose_landmarks(holistic_results, width, height, roi_offset, roi_bbox)
+        face_lm = self.extract_face_landmarks(face_results, width, height, roi_offset, roi_bbox)
+        left_hand = self.extract_hand_landmarks(holistic_results.left_hand_landmarks, width, height, roi_offset, roi_bbox)
+        right_hand = self.extract_hand_landmarks(holistic_results.right_hand_landmarks, width, height, roi_offset, roi_bbox)
+
+        return full_annotated, pose_lm, face_lm, left_hand, right_hand
 
     def process_top_camera(self, cv_image):
-        """Top Camera: Hands only"""
+        """Top Camera: Hands only with ROI support"""
         height, width = cv_image.shape[:2]
         
-        image_rgb = cv2.cvtColor(cv_image, cv2.COLOR_BGR2RGB)
+        # ROI cropping
+        if self.top_roi_enabled and self.top_roi_width > 0 and self.top_roi_height > 0:
+            roi_x = int(np.clip(self.top_roi_x, 0, width-1))
+            roi_y = int(np.clip(self.top_roi_y, 0, height-1))
+            roi_x2 = int(np.clip(roi_x + self.top_roi_width, 0, width))
+            roi_y2 = int(np.clip(roi_y + self.top_roi_height, 0, height))
+            processing_image = cv_image[roi_y:roi_y2, roi_x:roi_x2]
+            roi_offset = (roi_x, roi_y)
+            roi_bbox = (roi_x, roi_y, roi_x2, roi_y2)
+        else:
+            processing_image = cv_image
+            roi_offset = (0, 0)
+            roi_x = roi_y = 0
+            roi_x2 = width
+            roi_y2 = height
+            roi_bbox = (0, 0, width, height)
+        
+        image_rgb = cv2.cvtColor(processing_image, cv2.COLOR_BGR2RGB)
         image_rgb.flags.writeable = False
 
         hands_results = self.hands.process(image_rgb)
@@ -236,45 +429,52 @@ class UnifiedCameraNode(Node):
                     landmark_drawing_spec=self.mp_drawing_styles.get_default_hand_landmarks_style(),
                     connection_drawing_spec=self.mp_drawing_styles.get_default_hand_connections_style())
                 
-                hand_lm = self.extract_hand_landmarks(hand_landmarks, width, height)
+                hand_lm = self.extract_hand_landmarks(hand_landmarks, width, height, roi_offset, roi_bbox)
                 
                 if handedness == "Left":
                     left_hand = hand_lm
                 else:
                     right_hand = hand_lm
 
-        return annotated, left_hand, right_hand
+        # Stitch back into full image if ROI
+        if self.top_roi_enabled and self.top_roi_width > 0 and self.top_roi_height > 0:
+            full_annotated = cv_image.copy()
+            full_annotated[roi_y:roi_y2, roi_x:roi_x2] = annotated
+        else:
+            full_annotated = annotated
 
-    def extract_pose_landmarks(self, results, width, height):
-        """ランドマークを抽出（ピクセル座標 + MediaPipe Z）"""
+        return full_annotated, left_hand, right_hand
+
+    def extract_pose_landmarks(self, results, width, height, roi_offset, roi_bbox):
+        """ランドマークを抽出（全画像座標）"""
         landmarks = []
         if results and results.pose_landmarks:
             for lm in results.pose_landmarks.landmark:
-                x = lm.x * width
-                y = lm.y * height
+                x = lm.x * (roi_bbox[2] - roi_bbox[0]) + roi_offset[0]
+                y = lm.y * (roi_bbox[3] - roi_bbox[1]) + roi_offset[1]
                 z = lm.z
                 landmarks.extend([x, y, z])
         return landmarks
 
-    def extract_face_landmarks(self, results, width, height):
+    def extract_face_landmarks(self, results, width, height, roi_offset, roi_bbox):
         """顔ランドマークを抽出"""
         landmarks = []
         if results and results.multi_face_landmarks:
             for face_lm in results.multi_face_landmarks:
                 for lm in face_lm.landmark:
-                    x = lm.x * width
-                    y = lm.y * height
+                    x = lm.x * (roi_bbox[2] - roi_bbox[0]) + roi_offset[0]
+                    y = lm.y * (roi_bbox[3] - roi_bbox[1]) + roi_offset[1]
                     z = lm.z
                     landmarks.extend([x, y, z])
         return landmarks
 
-    def extract_hand_landmarks(self, hand_lm, width, height):
+    def extract_hand_landmarks(self, hand_lm, width, height, roi_offset, roi_bbox):
         """手ランドマークを抽出"""
         landmarks = []
         if hand_lm:
             for lm in hand_lm.landmark:
-                x = lm.x * width
-                y = lm.y * height
+                x = lm.x * (roi_bbox[2] - roi_bbox[0]) + roi_offset[0]
+                y = lm.y * (roi_bbox[3] - roi_bbox[1]) + roi_offset[1]
                 z = lm.z
                 landmarks.extend([x, y, z])
         return landmarks
