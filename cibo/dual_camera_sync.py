@@ -4,283 +4,190 @@
 
 import rclpy
 from rclpy.node import Node
-from rclpy.qos import QoSProfile, ReliabilityPolicy, HistoryPolicy
-from sensor_msgs.msg import Image, CameraInfo
+from sensor_msgs.msg import Image
 from std_msgs.msg import Float32MultiArray
 from cv_bridge import CvBridge
 import cv2
-import mediapipe as mp
 import numpy as np
-from tf2_ros import TransformBroadcaster
-from geometry_msgs.msg import TransformStamped
-import message_filters
-from rclpy.parameter import Parameter
+import mediapipe as mp
+from message_filters import ApproximateTimeSynchronizer, Subscriber
+from rclpy.qos import QoSProfile, ReliabilityPolicy, HistoryPolicy
 
 class UnifiedCameraNode(Node):
     def __init__(self):
         super().__init__('unified_camera')
 
-        # ==== CV Bridge ====
+        # CvBridgeのインスタンスを作成
         self.bridge = CvBridge()
 
-        # ==== QoS Profile (best_effort) ====
-        self.qos_profile = QoSProfile(
-            reliability=ReliabilityPolicy.BEST_EFFORT,
-            history=HistoryPolicy.KEEP_LAST,
-            depth=10
-        )
-
-        # ==== MediaPipe ====
+        # ==== MediaPipe初期化 ====
         self.mp_drawing = mp.solutions.drawing_utils
         self.mp_drawing_styles = mp.solutions.drawing_styles
         self.mp_holistic = mp.solutions.holistic
         self.mp_face_mesh = mp.solutions.face_mesh
         self.mp_hands = mp.solutions.hands
 
-        # ==== Parameters ====
-        self.declare_parameter('camera_01_min_detection_confidence', 0.6)
-        self.declare_parameter('camera_01_min_tracking_confidence', 0.6)
-        self.declare_parameter('camera_01_camera_frame', 'camera_01_depth_optical_frame')
-        self.declare_parameter('camera_02_min_detection_confidence', 0.6)
-        self.declare_parameter('camera_02_min_tracking_confidence', 0.6)
-        self.declare_parameter('camera_02_camera_frame', 'camera_02_depth_optical_frame')
-
-        # Read parameters
-        self.cam01_config = {
-            'min_detection_confidence': float(self.get_parameter('camera_01_min_detection_confidence').value),
-            'min_tracking_confidence': float(self.get_parameter('camera_01_min_tracking_confidence').value),
-            'camera_frame': self.get_parameter('camera_01_camera_frame').value,
-        }
-
-        self.cam02_config = {
-            'min_detection_confidence': float(self.get_parameter('camera_02_min_detection_confidence').value),
-            'min_tracking_confidence': float(self.get_parameter('camera_02_min_tracking_confidence').value),
-            'camera_frame': self.get_parameter('camera_02_camera_frame').value,
-        }
-
-        # ==== MediaPipe Initializations ====
+        # Holistic (姿勢 + 手)
         self.holistic = self.mp_holistic.Holistic(
-            min_detection_confidence=self.cam01_config['min_detection_confidence'],
-            min_tracking_confidence=self.cam01_config['min_tracking_confidence']
+            min_detection_confidence=0.6,
+            min_tracking_confidence=0.6
         )
+
+        # Face Mesh
         self.face_mesh = self.mp_face_mesh.FaceMesh(
             max_num_faces=1,
             refine_landmarks=True,
-            min_detection_confidence=self.cam01_config['min_detection_confidence'],
-            min_tracking_confidence=self.cam01_config['min_tracking_confidence']
+            min_detection_confidence=0.6,
+            min_tracking_confidence=0.6
         )
+
+        # Hands (Top Camera用)
         self.hands = self.mp_hands.Hands(
             static_image_mode=False,
             max_num_hands=2,
-            min_detection_confidence=self.cam02_config['min_detection_confidence'],
-            min_tracking_confidence=self.cam02_config['min_tracking_confidence']
+            min_detection_confidence=0.6,
+            min_tracking_confidence=0.6
         )
 
-        # ==== GUI State ====
-        self.cam01_window_created = False
-        self.cam02_window_created = False
+        # QoS設定
+        qos_profile = QoSProfile(
+            reliability=ReliabilityPolicy.BEST_EFFORT,
+            history=HistoryPolicy.KEEP_LAST,
+            depth=10
+        )
 
-        # ==== Latest CameraInfo ====
-        self.cam01_color_info = None
-        self.cam01_depth_info = None
-        self.cam02_color_info = None
-        self.cam02_depth_info = None
+        # ==== Subscribers ====
+        # FRONTカメラ
+        front_color_sub = Subscriber(self, Image, '/front_camera/color/image_raw', qos_profile=qos_profile)
+        front_depth_sub = Subscriber(self, Image, '/front_camera/depth/image_raw', qos_profile=qos_profile)
+        
+        # TOPカメラ
+        top_color_sub = Subscriber(self, Image, '/top_camera/color/image_raw', qos_profile=qos_profile)
+        top_depth_sub = Subscriber(self, Image, '/top_camera/depth/image_raw', qos_profile=qos_profile)
+
+        # メッセージ同期
+        self.camera_sync = ApproximateTimeSynchronizer(
+            [front_color_sub, front_depth_sub, top_color_sub, top_depth_sub],
+            queue_size=50,
+            slop=0.5
+        )
+        self.camera_sync.registerCallback(self.camera_callback)
 
         # ==== Publishers ====
-        self.cam01_annotated_pub = self.create_publisher(Image, '/front_camera/annotated_image', self.qos_profile)
-        self.cam01_overlay_pub = self.create_publisher(Image, '/front_camera/overlay_image', self.qos_profile)
-        self.cam02_annotated_pub = self.create_publisher(Image, '/top_camera/annotated_image', self.qos_profile)
-        self.cam02_overlay_pub = self.create_publisher(Image, '/top_camera/overlay_image', self.qos_profile)
+        self.front_annotated_pub = self.create_publisher(Image, '/front_camera/annotated_image', 10)
+        self.front_overlay_pub = self.create_publisher(Image, '/front_camera/overlay_image', 10)
+        self.top_annotated_pub = self.create_publisher(Image, '/top_camera/annotated_image', 10)
+        self.top_overlay_pub = self.create_publisher(Image, '/top_camera/overlay_image', 10)
 
-        # ==== TF Broadcaster ====
-        self.tf_broadcaster = TransformBroadcaster(self)
+        # ランドマーク出力
+        self.front_pose_pub = self.create_publisher(Float32MultiArray, '/front_camera/pose_landmarks', 10)
+        self.front_face_pub = self.create_publisher(Float32MultiArray, '/front_camera/face_landmarks', 10)
+        self.top_hand_left_pub = self.create_publisher(Float32MultiArray, '/top_camera/left_hand_landmarks', 10)
+        self.top_hand_right_pub = self.create_publisher(Float32MultiArray, '/top_camera/right_hand_landmarks', 10)
 
-        # ==== Subscribers with message synchronization (color + depth only) ====
-        self.get_logger().info('Setting up Front Camera synchronizer...')
-        cam01_color_sub = message_filters.Subscriber(self, Image, '/front_camera/color/image_raw/compressed', qos_profile=self.qos_profile)
-        cam01_depth_sub = message_filters.Subscriber(self, Image, '/front_camera/depth/image_raw/compressed', qos_profile=self.qos_profile)
+        # ウィンドウ作成
+        cv2.namedWindow("FRONT Camera", cv2.WINDOW_NORMAL)
+        cv2.namedWindow("TOP Camera", cv2.WINDOW_NORMAL)
+        cv2.resizeWindow("FRONT Camera", 640, 480)
+        cv2.resizeWindow("TOP Camera", 640, 480)
 
-        cam01_ats = message_filters.ApproximateTimeSynchronizer(
-            [cam01_color_sub, cam01_depth_sub], 
-            queue_size=30, slop=0.1
-        )
-        cam01_ats.registerCallback(self.cam01_synced_callback)
-        self.get_logger().info('Front Camera synchronizer registered')
+        self.get_logger().info('Unified Camera Node initialized')
 
-        # CameraInfo subscribers (separate, no time sync)
-        self.create_subscription(CameraInfo, '/front_camera/color/camera_info', self.cam01_color_info_callback, self.qos_profile)
-        self.create_subscription(CameraInfo, '/front_camera/depth/camera_info', self.cam01_depth_info_callback, self.qos_profile)
-
-        self.get_logger().info('Setting up Top Camera synchronizer...')
-        cam02_color_sub = message_filters.Subscriber(self, Image, '/top_camera/color/image_raw/compressed', qos_profile=self.qos_profile)
-        cam02_depth_sub = message_filters.Subscriber(self, Image, '/top_camera/depth/image_raw/compressed', qos_profile=self.qos_profile)
-
-        cam02_ats = message_filters.ApproximateTimeSynchronizer(
-            [cam02_color_sub, cam02_depth_sub], 
-            queue_size=30, slop=0.1
-        )
-        cam02_ats.registerCallback(self.cam02_synced_callback)
-        self.get_logger().info('Top Camera synchronizer registered')
-
-        # CameraInfo subscribers (separate, no time sync)
-        self.create_subscription(CameraInfo, '/top_camera/color/camera_info', self.cam02_color_info_callback, self.qos_profile)
-        self.create_subscription(CameraInfo, '/top_camera/depth/camera_info', self.cam02_depth_info_callback, self.qos_profile)
-
-        self.get_logger().info('Unified Camera Node initialized successfully')
-
-    # ====================== CameraInfo Callbacks ======================
-    def cam01_color_info_callback(self, msg: CameraInfo):
-        self.cam01_color_info = msg
-
-    def cam01_depth_info_callback(self, msg: CameraInfo):
-        self.cam01_depth_info = msg
-
-    def cam02_color_info_callback(self, msg: CameraInfo):
-        self.cam02_color_info = msg
-
-    def cam02_depth_info_callback(self, msg: CameraInfo):
-        self.cam02_depth_info = msg
-
-    # ====================== Camera 01 (Front) Callback ======================
-    def cam01_synced_callback(self, color_msg: Image, depth_msg: Image):
-        self.get_logger().info('Front Camera callback received')
-        
+    def camera_callback(self, front_color_msg, front_depth_msg, top_color_msg, top_depth_msg):
         try:
-            color = self.bridge.imgmsg_to_cv2(color_msg, "bgr8")
-            self.get_logger().info(f'✓ Front Camera color: {color.shape}')
+            # ==== FRONT Camera処理 ====
+            front_color = self.bridge.imgmsg_to_cv2(front_color_msg, desired_encoding='bgr8')
+            front_depth = self.bridge.imgmsg_to_cv2(front_depth_msg, desired_encoding='passthrough')
+
+            # FRONT: Holistic + Face Mesh処理
+            front_annotated, pose_lm, face_lm = self.process_front_camera(front_color)
+            
+            # 深度の可視化
+            front_depth_normalized = cv2.normalize(front_depth, None, 0, 255, cv2.NORM_MINMAX)
+            front_depth_8bit = cv2.convertScaleAbs(front_depth_normalized)
+            front_depth_colored = cv2.applyColorMap(front_depth_8bit, cv2.COLORMAP_JET)
+
+            # オーバーレイ合成
+            front_overlay = cv2.addWeighted(front_annotated, 0.7, front_depth_colored, 0.3, 0)
+
+            # 出力
+            self.publish_image(self.front_annotated_pub, front_annotated, front_color_msg)
+            self.publish_image(self.front_overlay_pub, front_overlay, front_color_msg)
+            self.publish_landmarks(self.front_pose_pub, pose_lm)
+            self.publish_landmarks(self.front_face_pub, face_lm)
+
+            # ==== TOP Camera処理 ====
+            top_color = self.bridge.imgmsg_to_cv2(top_color_msg, desired_encoding='bgr8')
+            top_depth = self.bridge.imgmsg_to_cv2(top_depth_msg, desired_encoding='passthrough')
+
+            # TOP: 手検出のみ
+            top_annotated, left_hand, right_hand = self.process_top_camera(top_color)
+
+            # 深度の可視化
+            top_depth_normalized = cv2.normalize(top_depth, None, 0, 255, cv2.NORM_MINMAX)
+            top_depth_8bit = cv2.convertScaleAbs(top_depth_normalized)
+            top_depth_colored = cv2.applyColorMap(top_depth_8bit, cv2.COLORMAP_JET)
+
+            # オーバーレイ合成
+            top_overlay = cv2.addWeighted(top_annotated, 0.7, top_depth_colored, 0.3, 0)
+
+            # 出力
+            self.publish_image(self.top_annotated_pub, top_annotated, top_color_msg)
+            self.publish_image(self.top_overlay_pub, top_overlay, top_color_msg)
+            self.publish_landmarks(self.top_hand_left_pub, left_hand)
+            self.publish_landmarks(self.top_hand_right_pub, right_hand)
+
+            # ==== Display ====
+            cv2.imshow("FRONT Camera", front_overlay)
+            cv2.imshow("TOP Camera", top_overlay)
+
+            key = cv2.waitKey(1) & 0xFF
+            if key == ord('q'):
+                cv2.destroyAllWindows()
+
         except Exception as e:
-            self.get_logger().error(f'✗ Front Camera color error: {e}')
-            return
+            self.get_logger().error(f"Error processing camera images: {e}")
 
-        try:
-            depth = self.bridge.imgmsg_to_cv2(depth_msg, desired_encoding="passthrough")
-            if depth_msg.encoding in ('16UC1', 'mono16'):
-                depth_m = depth.astype(np.float32) / 1000.0
-            else:
-                depth_m = depth.astype(np.float32)
-            self.get_logger().info(f'✓ Front Camera depth: {depth_m.shape}')
-        except Exception as e:
-            self.get_logger().error(f'✗ Front Camera depth error: {e}')
-            return
-
-        # Resize depth to match color
-        if depth_m.shape != color.shape[:2]:
-            depth_m = cv2.resize(depth_m, (color.shape[1], color.shape[0]), interpolation=cv2.INTER_NEAREST)
-
-        # Process
-        annotated_image, pose_lm, face_lm, lhand_lm, rhand_lm = self.process_camera_01(color)
-        overlay_image = self.overlay_depth_on_color(annotated_image, depth_m, 0.3)
-
-        # Publish
-        ann = self.bridge.cv2_to_imgmsg(annotated_image, "bgr8")
-        ann.header = color_msg.header
-        self.cam01_annotated_pub.publish(ann)
-
-        ovr = self.bridge.cv2_to_imgmsg(overlay_image, "bgr8")
-        ovr.header = color_msg.header
-        self.cam01_overlay_pub.publish(ovr)
-
-        # Display
-        if not self.cam01_window_created:
-            cv2.namedWindow('Front Camera', cv2.WINDOW_NORMAL)
-            cv2.resizeWindow('Front Camera', 640, 480)
-            self.cam01_window_created = True
-
-        disp = overlay_image.copy()
-        cv2.putText(disp, 'Front Camera (q: quit)', (10, 30),
-                    cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 255, 0), 2)
-        cv2.imshow('Front Camera', disp)
-        
-        key = cv2.waitKey(1) & 0xFF
-        if key == ord('q'):
-            cv2.destroyAllWindows()
-
-    # ====================== Camera 02 (Top) Callback ======================
-    def cam02_synced_callback(self, color_msg: Image, depth_msg: Image):
-        self.get_logger().info('Top Camera callback received')
-        
-        try:
-            color = self.bridge.imgmsg_to_cv2(color_msg, "bgr8")
-            self.get_logger().info(f'✓ Top Camera color: {color.shape}')
-        except Exception as e:
-            self.get_logger().error(f'✗ Top Camera color error: {e}')
-            return
-
-        try:
-            depth = self.bridge.imgmsg_to_cv2(depth_msg, desired_encoding="passthrough")
-            if depth_msg.encoding in ('16UC1', 'mono16'):
-                depth_m = depth.astype(np.float32) / 1000.0
-            else:
-                depth_m = depth.astype(np.float32)
-            self.get_logger().info(f'✓ Top Camera depth: {depth_m.shape}')
-        except Exception as e:
-            self.get_logger().error(f'✗ Top Camera depth error: {e}')
-            return
-
-        # Resize depth to match color
-        if depth_m.shape != color.shape[:2]:
-            depth_m = cv2.resize(depth_m, (color.shape[1], color.shape[0]), interpolation=cv2.INTER_NEAREST)
-
-        # Process
-        annotated_image, lhand_lm, rhand_lm = self.process_camera_02(color)
-        overlay_image = self.overlay_depth_on_color(annotated_image, depth_m, 0.3)
-
-        # Publish
-        ann = self.bridge.cv2_to_imgmsg(annotated_image, "bgr8")
-        ann.header = color_msg.header
-        self.cam02_annotated_pub.publish(ann)
-
-        ovr = self.bridge.cv2_to_imgmsg(overlay_image, "bgr8")
-        ovr.header = color_msg.header
-        self.cam02_overlay_pub.publish(ovr)
-
-        # Display
-        if not self.cam02_window_created:
-            cv2.namedWindow('Top Camera', cv2.WINDOW_NORMAL)
-            cv2.resizeWindow('Top Camera', 640, 480)
-            self.cam02_window_created = True
-
-        disp = overlay_image.copy()
-        cv2.putText(disp, 'Top Camera (q: quit)', (10, 30),
-                    cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 255, 0), 2)
-        cv2.imshow('Top Camera', disp)
-        
-        key = cv2.waitKey(1) & 0xFF
-        if key == ord('q'):
-            cv2.destroyAllWindows()
-
-    # ====================== Processing Methods ======================
-    def process_camera_01(self, cv_image):
-        """Process front camera"""
-        height, width = cv_image.shape[:2]
+    def process_front_camera(self, cv_image):
+        """Front Camera: Holistic + Face Mesh"""
         image_rgb = cv2.cvtColor(cv_image, cv2.COLOR_BGR2RGB)
         image_rgb.flags.writeable = False
 
+        # Holistic処理
         holistic_results = self.holistic.process(image_rgb)
+        
+        # Face Mesh処理
         face_results = self.face_mesh.process(image_rgb)
 
         image_rgb.flags.writeable = True
         annotated = cv2.cvtColor(image_rgb, cv2.COLOR_RGB2BGR)
 
+        # ランドマーク描画
         if holistic_results.pose_landmarks:
-            self.mp_drawing.draw_landmarks(annotated, holistic_results.pose_landmarks, self.mp_holistic.POSE_CONNECTIONS)
+            self.mp_drawing.draw_landmarks(
+                annotated, holistic_results.pose_landmarks, self.mp_holistic.POSE_CONNECTIONS)
+
         if holistic_results.left_hand_landmarks:
-            self.mp_drawing.draw_landmarks(annotated, holistic_results.left_hand_landmarks, self.mp_holistic.HAND_CONNECTIONS)
+            self.mp_drawing.draw_landmarks(
+                annotated, holistic_results.left_hand_landmarks, self.mp_holistic.HAND_CONNECTIONS)
+
         if holistic_results.right_hand_landmarks:
-            self.mp_drawing.draw_landmarks(annotated, holistic_results.right_hand_landmarks, self.mp_holistic.HAND_CONNECTIONS)
+            self.mp_drawing.draw_landmarks(
+                annotated, holistic_results.right_hand_landmarks, self.mp_holistic.HAND_CONNECTIONS)
+
         if face_results.multi_face_landmarks:
             for face_landmarks in face_results.multi_face_landmarks:
-                self.mp_drawing.draw_landmarks(annotated, face_landmarks, self.mp_face_mesh.FACEMESH_TESSELATION)
+                self.mp_drawing.draw_landmarks(
+                    annotated, face_landmarks, self.mp_face_mesh.FACEMESH_TESSELATION)
 
-        pose_lm = self.extract_pose_landmarks(holistic_results)
-        face_lm = self.extract_face_landmarks(face_results)
-        lhand_lm = self.extract_hand_landmarks(holistic_results.left_hand_landmarks)
-        rhand_lm = self.extract_hand_landmarks(holistic_results.right_hand_landmarks)
+        # ランドマーク抽出
+        pose_lm = self.extract_landmarks(holistic_results.pose_landmarks)
+        face_lm = self.extract_landmarks_from_multi(face_results.multi_face_landmarks)
 
-        return annotated, pose_lm, face_lm, lhand_lm, rhand_lm
+        return annotated, pose_lm, face_lm
 
-    def process_camera_02(self, cv_image):
-        """Process top camera"""
+    def process_top_camera(self, cv_image):
+        """Top Camera: Hands only"""
         image_rgb = cv2.cvtColor(cv_image, cv2.COLOR_BGR2RGB)
         image_rgb.flags.writeable = False
 
@@ -289,58 +196,59 @@ class UnifiedCameraNode(Node):
         image_rgb.flags.writeable = True
         annotated = cv2.cvtColor(image_rgb, cv2.COLOR_RGB2BGR)
 
-        lhand_lm = []
-        rhand_lm = []
+        left_hand = []
+        right_hand = []
 
         if hands_results.multi_hand_landmarks and hands_results.multi_handedness:
             for idx, hand_landmarks in enumerate(hands_results.multi_hand_landmarks):
                 handedness = hands_results.multi_handedness[idx].classification[0].label
-                self.mp_drawing.draw_landmarks(annotated, hand_landmarks, self.mp_hands.HAND_CONNECTIONS)
-                flat = self.extract_hand_landmarks(hand_landmarks)
+                
+                self.mp_drawing.draw_landmarks(
+                    annotated, hand_landmarks, self.mp_hands.HAND_CONNECTIONS)
+                
+                hand_lm = self.extract_landmarks(hand_landmarks)
+                
                 if handedness == "Left":
-                    lhand_lm = flat
-                elif handedness == "Right":
-                    rhand_lm = flat
+                    left_hand = hand_lm
+                else:
+                    right_hand = hand_lm
 
-        return annotated, lhand_lm, rhand_lm
+        return annotated, left_hand, right_hand
 
-    # ====================== Helper Methods ======================
-    def overlay_depth_on_color(self, color, depth_m, alpha=0.3):
-        """Overlay depth visualization on color image"""
-        if color is None or depth_m is None:
-            return color if color is not None else np.zeros((480, 640, 3), dtype=np.uint8)
-        
-        depth_normalized = np.clip((depth_m / 3.0) * 255, 0, 255).astype(np.uint8)
-        depth_color = cv2.applyColorMap(depth_normalized, cv2.COLORMAP_JET)
-        overlaid = cv2.addWeighted(color, 1.0 - alpha, depth_color, alpha, 0)
-        return overlaid
+    def extract_landmarks(self, landmarks):
+        """ランドマークをフラット配列に変換"""
+        flat = []
+        if landmarks:
+            for lm in landmarks.landmark:
+                flat.extend([lm.x, lm.y, lm.z])
+        return flat
 
-    def extract_pose_landmarks(self, results):
-        landmarks = []
-        if results and results.pose_landmarks:
-            for lm in results.pose_landmarks.landmark:
-                landmarks.extend([lm.x, lm.y, lm.z])
-        return landmarks
+    def extract_landmarks_from_multi(self, multi_landmarks):
+        """複数のランドマークをフラット配列に変換"""
+        flat = []
+        if multi_landmarks:
+            for landmarks in multi_landmarks:
+                for lm in landmarks.landmark:
+                    flat.extend([lm.x, lm.y, lm.z])
+        return flat
 
-    def extract_face_landmarks(self, results):
-        landmarks = []
-        if results and results.multi_face_landmarks:
-            for face_lm in results.multi_face_landmarks:
-                for lm in face_lm.landmark:
-                    landmarks.extend([lm.x, lm.y, lm.z])
-        return landmarks
+    def publish_image(self, pub, cv_image, header_msg):
+        """画像をパブリッシュ"""
+        msg = self.bridge.cv2_to_imgmsg(cv_image, encoding="bgr8")
+        msg.header = header_msg.header
+        pub.publish(msg)
 
-    def extract_hand_landmarks(self, hand_lm):
-        landmarks = []
-        if hand_lm:
-            for lm in hand_lm.landmark:
-                landmarks.extend([lm.x, lm.y, lm.z])
-        return landmarks
+    def publish_landmarks(self, pub, landmarks):
+        """ランドマークをパブリッシュ"""
+        msg = Float32MultiArray()
+        msg.data = landmarks
+        pub.publish(msg)
 
 
 def main(args=None):
     rclpy.init(args=args)
     node = UnifiedCameraNode()
+
     try:
         rclpy.spin(node)
     except KeyboardInterrupt:

@@ -30,6 +30,7 @@ setup(
             'front_camera_node = cibo.front_camera:main',
             'front_camera_depth_node = cibo.front_camera_depth:main',
             'image_show_node = cibo.image_show:main',
+            'compressed_image_show_node = cibo.compressed_image_show:main',
             'dual_camera_sync_node_node = cibo.dual_camera_sync:main',
         ],
     },
