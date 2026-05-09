@@ -57,11 +57,16 @@ colcon build --symlink-install --packages-select cibo
 source install/setup.bash
 ```
 ### Camera launch
-Run camera
+Run Front camera
 ```bash
-ros2 launch orbbec_camera multi_camera.launch.py
+# NUC36
+ros2 launch orbbec_camera astra_stereo_u3.launch.py camera_name:=front_camera
 ```
-
+Run Front camera
+```bash
+# NUC30
+ros2 launch orbbec_camera astra_stereo_u3.launch.py camera_name:=top_camera
+```
 
 ### Launch Cibo
 ```bash

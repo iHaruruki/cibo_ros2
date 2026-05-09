@@ -36,11 +36,11 @@ class TopCameraNode(Node):
         self.declare_parameter('roi_height', 300)
 
         # topics / frames
-        self.declare_parameter('color_topic', '/camera_02/color/image_raw')
-        self.declare_parameter('color_info_topic', '/camera_02/color/camera_info')
-        self.declare_parameter('depth_topic', '/camera_02/depth/image_raw')
-        self.declare_parameter('depth_info_topic', '/camera_02/depth/camera_info')
-        self.declare_parameter('camera_frame', 'camera_02_depth_optical_frame')
+        self.declare_parameter('color_topic', '/top_camera/color/image_raw')
+        self.declare_parameter('color_info_topic', '/top_camera/color/camera_info')
+        self.declare_parameter('depth_topic', '/top_camera/depth/image_raw')
+        self.declare_parameter('depth_info_topic', '/top_camera/depth/camera_info')
+        self.declare_parameter('camera_frame', 'top_camera_depth_optical_frame')
         self.declare_parameter('tf_rate_hz', 30.0)
 
         # Read params
