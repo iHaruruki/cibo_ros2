@@ -1,6 +1,3 @@
-<!--  Copyright (c) 2025 Haruki Isono
-      This software is released under the MIT License, see LICENSE. -->
-
 <?xml version="1.0"?>
 <robot name="cibo" xmlns:xacro="http://ros.org/wiki/xacro">
 
@@ -49,7 +46,7 @@
   <joint name="pedestal_vertical_joint" type="fixed">
     <parent link="pedestal_link"/>
     <child link="vertical_bar_link"/>
-    <origin xyz="-0.1 0.0 0.379" rpy="0 0 0"/>
+    <origin xyz="0.0 0.0 0.379" rpy="0 0 0"/>
   </joint>
 
   <link name="horizontal_bar_link">
@@ -67,7 +64,7 @@
     <origin xyz="0.2 0.0 0.379" rpy="0 1.57 0"/>
   </joint>
 
-  <!-- camera_01_link*Front Camera) -->
+  <!-- camera_01_link(Front Camera) -->
   <link name="camera_01_link">
     <visual>
       <geometry>

@@ -25,7 +25,7 @@ Install python packages
 pip3 install -U "numpy==1.26.4" "opencv-python==4.10.0.84"
 pip3 install opencv-python mediapipe
 ```
-Install ros packages
+Install ros 2 packages
 ```bash
 sudo apt install ros-$ROS_DISTRO-cv-bridge
 sudo apt install ros-$ROS_DISTRO-image-transport
@@ -34,6 +34,7 @@ sudo apt install ros-$ROS_DISTRO-ffmpeg-image-transport
 sudo apt install ros-$ROS_DISTRO-ffmpeg-image-transport-tools
 sudo apt install ros-$ROS_DISTRO-xacro 
 sudo apt install ros-$ROS_DISTRO-urdf-tutorial
+source /opt/ros/$ROS_DISTRO/setup.bash
 ```
 ### Setup cibo Repositories
 Clone
