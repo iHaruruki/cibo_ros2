@@ -64,8 +64,8 @@
     <origin xyz="0.2 0.0 0.379" rpy="0 1.57 0"/>
   </joint>
 
-  <!-- camera_01_link(Front Camera) -->
-  <link name="camera_01_link">
+  <!-- front_camera_link -->
+  <link name="front_camera_link">
     <visual>
       <geometry>
         <box size="0.0123 0.0653 0.0225"/>
@@ -74,14 +74,14 @@
     </visual>
   </link>
 
-  <joint name="camera_01_joint" type="fixed">
+  <joint name="front_camera_joint" type="fixed">
     <parent link="vertical_bar_link"/>
-    <child link="camera_01_link"/>
+    <child link="front_camera_link"/>
     <origin xyz="0.16 0.0 -0.311" rpy="0 0 0"/>
   </joint>
 
-  <!-- camera_02_link(Top Camera) -->
-  <link name="camera_02_link">
+  <!-- top_camera_link -->
+  <link name="top_camera_link">
     <visual>
       <geometry>
         <box size="0.0123 0.0653 0.0225"/>
@@ -90,9 +90,9 @@
     </visual>
   </link>
 
-  <joint name="camera_02_joint" type="fixed">
+  <joint name="top_camera_joint" type="fixed">
     <parent link="horizontal_bar_link"/>
-    <child link="camera_02_link"/>
+    <child link="top_camera_link"/>
     <origin xyz="0.025 0.0 0.2" rpy="-3.14 0 0"/>
   </joint>
 
