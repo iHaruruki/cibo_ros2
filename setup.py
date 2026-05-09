@@ -32,6 +32,7 @@ setup(
             'image_show_node = cibo.image_show:main',
             'compressed_image_show_node = cibo.compressed_image_show:main',
             'dual_camera_sync_node_node = cibo.dual_camera_sync:main',
+            'check_image_compressed_node = cibo.check_image_compressed:main',
         ],
     },
 )
