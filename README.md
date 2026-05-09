@@ -6,7 +6,7 @@
 - Estimating a person's state during meals.
 
 ## 📦 Feature
-
+Eating Behavior Recognition for Elderly People.
 
 ## 🛠️ Setup
 ### Setup Camera ([Astra Stereo S U3](https://store.orbbec.com/products/astra-stereo-s-u3?srsltid=AfmBOop-7Cnl_FU8fo6iytP43uBmOZTonKg5eosq_w3jRvFCeXtigKCG))
