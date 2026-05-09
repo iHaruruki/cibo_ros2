@@ -27,11 +27,13 @@ pip3 install opencv-python mediapipe
 ```
 Install ros packages
 ```bash
-sudo apt install ros-${ROS_DISTRO}-cv-bridge
-sudo apt install ros-${ROS_DISTRO}-image-transport
-sudo apt install ros-${ROS_DISTRO}-message-filters
-sudo apt install ros-${ROS_DISTRO}-ffmpeg-image-transport
-sudo apt install ros-${ROS_DISTRO}-ffmpeg-image-transport-tools
+sudo apt install ros-$ROS_DISTRO-cv-bridge
+sudo apt install ros-$ROS_DISTRO-image-transport
+sudo apt install ros-$ROS_DISTRO-message-filters
+sudo apt install ros-$ROS_DISTRO-ffmpeg-image-transport
+sudo apt install ros-$ROS_DISTRO-ffmpeg-image-transport-tools
+sudo apt install ros-$ROS_DISTRO-xacro 
+sudo apt install ros-$ROS_DISTRO-urdf-tutorial
 ```
 ### Setup cibo Repositories
 Clone
