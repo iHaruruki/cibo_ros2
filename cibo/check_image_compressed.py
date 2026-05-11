@@ -102,7 +102,7 @@ class CameraSubscriberNode(Node):
             valid_depth = cv_image[cv_image > 0]
             if len(valid_depth) > 0:
                 self.get_logger().info(
-                    f"📊 Depth Raw - Min: {valid_depth.min():.3f}m, "
+                    f"Depth Raw - Min: {valid_depth.min():.3f}m, "
                     f"Max: {valid_depth.max():.3f}m, Mean: {valid_depth.mean():.3f}m"
                 )
             
@@ -130,7 +130,7 @@ class CameraSubscriberNode(Node):
                 valid_depth = cv_image[cv_image > 0]
                 if len(valid_depth) > 0:
                     self.get_logger().info(
-                        f"📊 Depth Compressed - Min: {valid_depth.min():.3f}m, "
+                        f"Depth Compressed - Min: {valid_depth.min():.3f}m, "
                         f"Max: {valid_depth.max():.3f}m, Mean: {valid_depth.mean():.3f}m, "
                         f"Format: {msg.format}, Size: {len(msg.data)} bytes"
                     )
@@ -146,14 +146,14 @@ class CameraSubscriberNode(Node):
     # color/camera_info
     def color_info_callback(self, msg):
         self.get_logger().info(
-            f"📸 Color Camera Info - Resolution: {msg.width}x{msg.height}, "
+            f"Color Camera Info - Resolution: {msg.width}x{msg.height}, "
             f"Frame ID: {msg.header.frame_id}"
         )
 
     # depth/camera_info
     def depth_info_callback(self, msg):
         self.get_logger().info(
-            f"📸 Depth Camera Info - Resolution: {msg.width}x{msg.height}, "
+            f"Depth Camera Info - Resolution: {msg.width}x{msg.height}, "
             f"Frame ID: {msg.header.frame_id}"
         )
 
