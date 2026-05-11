@@ -13,7 +13,7 @@ class CameraSubscriberNode(Node):
         self.bridge = CvBridge()
         self.declare_parameter('show_images', True)
         
-        # ============ RGB カラー画像 ============
+        # color/image_raw
         self.color_raw_sub = self.create_subscription(
             Image,
             '/top_camera/color/image_raw',
@@ -22,6 +22,7 @@ class CameraSubscriberNode(Node):
         )
         self.get_logger().info("Subscribed to /top_camera/color/image_raw")
         
+        # color/image_raw/compressed
         self.color_compressed_sub = self.create_subscription(
             CompressedImage,
             '/top_camera/color/image_raw/compressed',
@@ -30,7 +31,7 @@ class CameraSubscriberNode(Node):
         )
         self.get_logger().info("Subscribed to /top_camera/color/image_raw/compressed")
         
-        # ============ デプス画像 ============
+        # depth/image_raw
         self.depth_raw_sub = self.create_subscription(
             Image,
             '/top_camera/depth/image_raw',
@@ -39,6 +40,7 @@ class CameraSubscriberNode(Node):
         )
         self.get_logger().info("Subscribed to /top_camera/depth/image_raw")
         
+        # depth/image_raw/compressed
         self.depth_compressed_sub = self.create_subscription(
             CompressedImage,
             '/top_camera/depth/image_raw/compressedDepth',
@@ -47,7 +49,7 @@ class CameraSubscriberNode(Node):
         )
         self.get_logger().info("Subscribed to /top_camera/depth/image_raw/compressedDepth")
         
-        # ============ カメラ情報 ============
+        # color/camera_info
         self.color_info_sub = self.create_subscription(
             CameraInfo,
             '/top_camera/color/camera_info',
@@ -55,6 +57,7 @@ class CameraSubscriberNode(Node):
             10
         )
         
+        # depth/camera_info
         self.depth_info_sub = self.create_subscription(
             CameraInfo,
             '/top_camera/depth/camera_info',
@@ -64,8 +67,8 @@ class CameraSubscriberNode(Node):
         
         self.get_logger().info("✅ Camera Subscriber Node started")
 
+    # color/image_raw
     def color_raw_callback(self, msg):
-        """RGB カラー画像（非圧縮）"""
         try:
             cv_image = self.bridge.imgmsg_to_cv2(msg, desired_encoding='bgr8')
             self.get_logger().info(
@@ -76,10 +79,9 @@ class CameraSubscriberNode(Node):
         except Exception as e:
             self.get_logger().error(f"Error in color_raw_callback: {e}")
 
+    # color/image_raw/compressed
     def color_compressed_callback(self, msg):
-        """RGB カラー画像（圧縮）"""
         try:
-            # 圧縮画像をデコード
             np_arr = np.frombuffer(msg.data, np.uint8)
             cv_image = cv2.imdecode(np_arr, cv2.IMREAD_COLOR)
             
@@ -92,8 +94,8 @@ class CameraSubscriberNode(Node):
         except Exception as e:
             self.get_logger().error(f"Error in color_compressed_callback: {e}")
 
+    # depth/image_raw
     def depth_raw_callback(self, msg):
-        """デプス画像（非圧縮）"""
         try:
             cv_image = self.bridge.imgmsg_to_cv2(msg, desired_encoding='32FC1')
             
@@ -112,8 +114,8 @@ class CameraSubscriberNode(Node):
         except Exception as e:
             self.get_logger().error(f"Error in depth_raw_callback: {e}")
 
+    # depth/image_raw/compressed
     def depth_compressed_callback(self, msg):
-        """デプス画像（圧縮 - compressedDepth）"""
         try:
             # compressedDepth形式をデコード
             # ヘッダー情報を読み取る
@@ -141,6 +143,7 @@ class CameraSubscriberNode(Node):
         except Exception as e:
             self.get_logger().error(f"Error in depth_compressed_callback: {e}")
 
+    # color/camera_info
     def color_info_callback(self, msg):
         """RGB カメラ情報"""
         self.get_logger().info(
@@ -148,6 +151,7 @@ class CameraSubscriberNode(Node):
             f"Frame ID: {msg.header.frame_id}"
         )
 
+    # depth/camera_info
     def depth_info_callback(self, msg):
         """デプス カメラ情報"""
         self.get_logger().info(
