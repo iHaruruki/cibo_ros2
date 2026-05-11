@@ -20,7 +20,7 @@ class CameraSubscriberNode(Node):
             self.color_raw_callback,
             10
         )
-        self.get_logger().info("Subscribed to /top_camera/color/image_raw")
+        self.get_logger().info("Subscribed to /color/image_raw")
         
         # color/image_raw/compressed
         self.color_compressed_sub = self.create_subscription(
@@ -29,7 +29,7 @@ class CameraSubscriberNode(Node):
             self.color_compressed_callback,
             10
         )
-        self.get_logger().info("Subscribed to /top_camera/color/image_raw/compressed")
+        self.get_logger().info("Subscribed to /color/image_raw/compressed")
         
         # depth/image_raw
         self.depth_raw_sub = self.create_subscription(
@@ -38,7 +38,7 @@ class CameraSubscriberNode(Node):
             self.depth_raw_callback,
             10
         )
-        self.get_logger().info("Subscribed to /top_camera/depth/image_raw")
+        self.get_logger().info("Subscribed to /depth/image_raw")
         
         # depth/image_raw/compressed
         self.depth_compressed_sub = self.create_subscription(
@@ -47,7 +47,7 @@ class CameraSubscriberNode(Node):
             self.depth_compressed_callback,
             10
         )
-        self.get_logger().info("Subscribed to /top_camera/depth/image_raw/compressedDepth")
+        self.get_logger().info("Subscribed to /depth/image_raw/compressedDepth")
         
         # color/camera_info
         self.color_info_sub = self.create_subscription(
@@ -65,7 +65,7 @@ class CameraSubscriberNode(Node):
             10
         )
         
-        self.get_logger().info("✅ Camera Subscriber Node started")
+        self.get_logger().info("Camera Subscriber Node started")
 
     # color/image_raw
     def color_raw_callback(self, msg):
@@ -145,7 +145,6 @@ class CameraSubscriberNode(Node):
 
     # color/camera_info
     def color_info_callback(self, msg):
-        """RGB カメラ情報"""
         self.get_logger().info(
             f"📸 Color Camera Info - Resolution: {msg.width}x{msg.height}, "
             f"Frame ID: {msg.header.frame_id}"
@@ -153,7 +152,6 @@ class CameraSubscriberNode(Node):
 
     # depth/camera_info
     def depth_info_callback(self, msg):
-        """デプス カメラ情報"""
         self.get_logger().info(
             f"📸 Depth Camera Info - Resolution: {msg.width}x{msg.height}, "
             f"Frame ID: {msg.header.frame_id}"
