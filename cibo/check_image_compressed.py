@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 import rclpy
 from rclpy.node import Node
 from sensor_msgs.msg import Image, CameraInfo, CompressedImage
@@ -33,13 +32,13 @@ class CameraSubscriberNode(Node):
         self.get_logger().info("Subscribed to /color/image_raw/compressed")
 
         # /color/image_raw/theora
-        self.color_compressed_sub = self.create_subscription(
-            Packet,
-            '/top_camera/color/image_raw/theora',
-            self.color_theora_callback,
-            10
-        )
-        self.get_logger().info("Subscribed to /color/image_raw/theora")
+        # self.color_compressed_sub = self.create_subscription(
+        #     Packet,
+        #     '/top_camera/color/image_raw/theora',
+        #     self.color_theora_callback,
+        #     10
+        # )
+        # self.get_logger().info("Subscribed to /color/image_raw/theora")
         
         # /depth/image_raw
         self.depth_raw_sub = self.create_subscription(
@@ -105,19 +104,19 @@ class CameraSubscriberNode(Node):
             self.get_logger().error(f"Error in color_compressed_callback: {e}")
 
     # /color/image_raw/theora
-    def color_theora_callback(self, msg):
-        try:
-            np_arr = np.frombuffer(msg.data, np.uint8)
-            cv_image = cv2.imdecode(np_arr, cv2.IMREAD_COLOR)
+    # def color_theora_callback(self, msg):
+    #     try:
+    #         np_arr = np.frombuffer(msg.data, np.uint8)
+    #         cv_image = cv2.imdecode(np_arr, cv2.IMREAD_COLOR)
             
-            self.get_logger().info(
-                f"Color Compressed - Shape: {cv_image.shape}, "
-                f"Format: {msg.format}, Size: {len(msg.data)} bytes"
-            )
-            cv2.imshow('/color/image_raw/theora', cv_image)
-            cv2.waitKey(1)
-        except Exception as e:
-            self.get_logger().error(f"Error in color_theora_callback: {e}")
+    #         self.get_logger().info(
+    #             f"Color Compressed - Shape: {cv_image.shape}, "
+    #             f"Format: {msg.format}, Size: {len(msg.data)} bytes"
+    #         )
+    #         cv2.imshow('/color/image_raw/theora', cv_image)
+    #         cv2.waitKey(1)
+    #     except Exception as e:
+    #         self.get_logger().error(f"Error in color_theora_callback: {e}")
 
     # /depth/image_raw
     def depth_raw_callback(self, msg):
