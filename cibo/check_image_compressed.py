@@ -32,7 +32,7 @@ class CameraSubscriberNode(Node):
         self.get_logger().info("Subscribed to /color/image_raw/compressed")
 
         # /color/image_raw/theora
-        # self.color_compressed_sub = self.create_subscription(
+        # self.color_theora_sub = self.create_subscription(
         #     Packet,
         #     '/top_camera/color/image_raw/theora',
         #     self.color_theora_callback,
@@ -106,15 +106,11 @@ class CameraSubscriberNode(Node):
     # /color/image_raw/theora
     # def color_theora_callback(self, msg):
     #     try:
-    #         np_arr = np.frombuffer(msg.data, np.uint8)
-    #         cv_image = cv2.imdecode(np_arr, cv2.IMREAD_COLOR)
-            
     #         self.get_logger().info(
-    #             f"Color Compressed - Shape: {cv_image.shape}, "
-    #             f"Format: {msg.format}, Size: {len(msg.data)} bytes"
+    #             f"Color Theora - Packet size: {len(msg.data)} bytes, "
+    #             f"KeyFrame: {msg.keyframe}, "
+    #             f"GranulePos: {msg.granulepos}"
     #         )
-    #         cv2.imshow('/color/image_raw/theora', cv_image)
-    #         cv2.waitKey(1)
     #     except Exception as e:
     #         self.get_logger().error(f"Error in color_theora_callback: {e}")
 
