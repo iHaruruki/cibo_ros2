@@ -72,7 +72,7 @@ class CameraSubscriberNode(Node):
         try:
             cv_image = self.bridge.imgmsg_to_cv2(msg, desired_encoding='bgr8')
             self.get_logger().info(
-                f"🎨 Color Raw - Shape: {cv_image.shape}, Encoding: {msg.encoding}"
+                f"Color Raw - Shape: {cv_image.shape}, Encoding: {msg.encoding}"
             )
             cv2.imshow('Color Image (RAW)', cv_image)
             cv2.waitKey(1)
@@ -86,7 +86,7 @@ class CameraSubscriberNode(Node):
             cv_image = cv2.imdecode(np_arr, cv2.IMREAD_COLOR)
             
             self.get_logger().info(
-                f"🎨 Color Compressed - Shape: {cv_image.shape}, "
+                f"Color Compressed - Shape: {cv_image.shape}, "
                 f"Format: {msg.format}, Size: {len(msg.data)} bytes"
             )
             cv2.imshow('Color Image (COMPRESSED)', cv_image)
