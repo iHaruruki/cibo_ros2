@@ -2,6 +2,7 @@
 import rclpy
 from rclpy.node import Node
 from sensor_msgs.msg import Image, CameraInfo, CompressedImage
+from theora_image_transport.msg import Packet
 from cv_bridge import CvBridge
 import cv2
 import numpy as np
@@ -13,7 +14,7 @@ class CameraSubscriberNode(Node):
         self.bridge = CvBridge()
         self.declare_parameter('show_images', True)
         
-        # color/image_raw
+        # /color/image_raw
         self.color_raw_sub = self.create_subscription(
             Image,
             '/top_camera/color/image_raw',
@@ -22,7 +23,7 @@ class CameraSubscriberNode(Node):
         )
         self.get_logger().info("Subscribed to /color/image_raw")
         
-        # color/image_raw/compressed
+        # /color/image_raw/compressed
         self.color_compressed_sub = self.create_subscription(
             CompressedImage,
             '/top_camera/color/image_raw/compressed',
@@ -30,8 +31,17 @@ class CameraSubscriberNode(Node):
             10
         )
         self.get_logger().info("Subscribed to /color/image_raw/compressed")
+
+        # /color/image_raw/theora
+        self.color_compressed_sub = self.create_subscription(
+            Packet,
+            '/top_camera/color/image_raw/theora',
+            self.color_theora_callback,
+            10
+        )
+        self.get_logger().info("Subscribed to /color/image_raw/theora")
         
-        # depth/image_raw
+        # /depth/image_raw
         self.depth_raw_sub = self.create_subscription(
             Image,
             '/top_camera/depth/image_raw',
@@ -40,7 +50,7 @@ class CameraSubscriberNode(Node):
         )
         self.get_logger().info("Subscribed to /depth/image_raw")
         
-        # depth/image_raw/compressed
+        # /depth/image_raw/compressed
         self.depth_compressed_sub = self.create_subscription(
             CompressedImage,
             '/top_camera/depth/image_raw/compressedDepth',
@@ -49,7 +59,7 @@ class CameraSubscriberNode(Node):
         )
         self.get_logger().info("Subscribed to /depth/image_raw/compressedDepth")
         
-        # color/camera_info
+        # /color/camera_info
         self.color_info_sub = self.create_subscription(
             CameraInfo,
             '/top_camera/color/camera_info',
@@ -57,7 +67,7 @@ class CameraSubscriberNode(Node):
             10
         )
         
-        # depth/camera_info
+        # /depth/camera_info
         self.depth_info_sub = self.create_subscription(
             CameraInfo,
             '/top_camera/depth/camera_info',
@@ -67,19 +77,19 @@ class CameraSubscriberNode(Node):
         
         self.get_logger().info("Camera Subscriber Node started")
 
-    # color/image_raw
+    # /color/image_raw
     def color_raw_callback(self, msg):
         try:
             cv_image = self.bridge.imgmsg_to_cv2(msg, desired_encoding='bgr8')
             self.get_logger().info(
                 f"Color Raw - Shape: {cv_image.shape}, Encoding: {msg.encoding}"
             )
-            cv2.imshow('Color Image (RAW)', cv_image)
+            cv2.imshow('/color/image_raw', cv_image)
             cv2.waitKey(1)
         except Exception as e:
             self.get_logger().error(f"Error in color_raw_callback: {e}")
 
-    # color/image_raw/compressed
+    # /color/image_raw/compressed
     def color_compressed_callback(self, msg):
         try:
             np_arr = np.frombuffer(msg.data, np.uint8)
@@ -89,12 +99,27 @@ class CameraSubscriberNode(Node):
                 f"Color Compressed - Shape: {cv_image.shape}, "
                 f"Format: {msg.format}, Size: {len(msg.data)} bytes"
             )
-            cv2.imshow('Color Image (COMPRESSED)', cv_image)
+            cv2.imshow('/color/image_raw/compressed', cv_image)
             cv2.waitKey(1)
         except Exception as e:
             self.get_logger().error(f"Error in color_compressed_callback: {e}")
 
-    # depth/image_raw
+    # /color/image_raw/theora
+    def color_theora_callback(self, msg):
+        try:
+            np_arr = np.frombuffer(msg.data, np.uint8)
+            cv_image = cv2.imdecode(np_arr, cv2.IMREAD_COLOR)
+            
+            self.get_logger().info(
+                f"Color Compressed - Shape: {cv_image.shape}, "
+                f"Format: {msg.format}, Size: {len(msg.data)} bytes"
+            )
+            cv2.imshow('/color/image_raw/theora', cv_image)
+            cv2.waitKey(1)
+        except Exception as e:
+            self.get_logger().error(f"Error in color_theora_callback: {e}")
+
+    # /depth/image_raw
     def depth_raw_callback(self, msg):
         try:
             cv_image = self.bridge.imgmsg_to_cv2(msg, desired_encoding='32FC1')
@@ -109,12 +134,12 @@ class CameraSubscriberNode(Node):
             # デプス画像を可視化
             depth_normalized = cv2.normalize(cv_image, None, 0, 255, cv2.NORM_MINMAX)
             depth_color = cv2.applyColorMap(depth_normalized.astype(np.uint8), cv2.COLORMAP_JET)
-            cv2.imshow('Depth Image (RAW)', depth_color)
+            cv2.imshow('/depth/image_raw', depth_color)
             cv2.waitKey(1)
         except Exception as e:
             self.get_logger().error(f"Error in depth_raw_callback: {e}")
 
-    # depth/image_raw/compressed
+    # /depth/image_raw/compressed
     def depth_compressed_callback(self, msg):
         try:
             # compressedDepth形式をデコード
@@ -138,19 +163,19 @@ class CameraSubscriberNode(Node):
                 # デプス画像を可視化
                 depth_normalized = cv2.normalize(cv_image, None, 0, 255, cv2.NORM_MINMAX)
                 depth_color = cv2.applyColorMap(depth_normalized.astype(np.uint8), cv2.COLORMAP_TURBO)
-                cv2.imshow('Depth Image (COMPRESSED)', depth_color)
+                cv2.imshow('/depth/image_raw/compressed', depth_color)
                 cv2.waitKey(1)
         except Exception as e:
             self.get_logger().error(f"Error in depth_compressed_callback: {e}")
 
-    # color/camera_info
+    # /color/camera_info
     def color_info_callback(self, msg):
         self.get_logger().info(
             f"Color Camera Info - Resolution: {msg.width}x{msg.height}, "
             f"Frame ID: {msg.header.frame_id}"
         )
 
-    # depth/camera_info
+    # /depth/camera_info
     def depth_info_callback(self, msg):
         self.get_logger().info(
             f"Depth Camera Info - Resolution: {msg.width}x{msg.height}, "
