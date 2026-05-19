@@ -37,9 +37,9 @@ class FrontCameraNode(Node):
         self.declare_parameter('roi_height', 300)
 
         # topics / frames
-        self.declare_parameter('color_topic', '/front_camera/color/image_raw')
+        self.declare_parameter('color_topic', '/front_camera/color/image_raw/compressed')
         self.declare_parameter('color_info_topic', '/front_camera/color/camera_info')
-        self.declare_parameter('depth_topic', '/front_camera/depth/image_raw')
+        self.declare_parameter('depth_topic', '/front_camera/depth/image_raw/compressedDepth')
         self.declare_parameter('depth_info_topic', '/front_camera/depth/camera_info')
         self.declare_parameter('camera_frame', 'front_camera_depth_optical_frame')
         self.declare_parameter('publish_face_tf', False)  # 顔478点は重いので既定OFF
@@ -144,27 +144,55 @@ class FrontCameraNode(Node):
                 self.get_logger().info(f'ROI set: x={self.roi_x}, y={self.roi_y}, w={self.roi_width}, h={self.roi_height}')
 
     # ====================== Core ======================
-    def synced_callback(self, color_msg: Image, depth_msg: Image, depth_info: CameraInfo):
+    def synced_callback(self, color_msg: CompressedImage, depth_msg: CompressedImage, depth_info: CameraInfo):
         try:
-            np_arr = np.frombuffer(color_msg, np.uint8)
-            color = cv2.imdecode(np_arr, cv2.IMREAD_COLOR)
+            color_data = np.frombuffer(color_msg.data, np.uint8)
+            color = cv2.imdecode(color_data, cv2.IMREAD_COLOR)
+            if color is None:
+                self.get_logger().error('Failed to decode color image')
+                return
         except Exception as e:
-            self.get_logger().error(f'color cv bridge error: {e}')
+            self.get_logger().error(f'Color decoding error ({type(e).__name__}): {e}')
             return
 
-        # depth image decoding
         try:
-            depth = self.bridge.imgmsg_to_cv2(depth_msg)
-            # normalize units to meters
-            if depth_msg.encoding in ('16UC1', 'mono16'):
+            # compressedDepth is a special ROS format, use cv_bridge with explicit handling
+            # depth_header = depth_msg.data[:12]
+            # depth_data = depth_msg.data[12:]
+
+            # np_arr = np.frombuffer(depth_data, np.uint8)
+            # cv_image = cv2.imdecode(np_arr, cv2.IMREAD_ANYDEPTH)
+
+            # if cv_image is not None:
+            #     valid_depth = cv_image[cv_image > 0]
+            #     if len(valid_depth) > 0:
+            #         self.get_logger().info(
+            #             f"Depth Compressed - Min: {valid_depth.min():.3f}m, "
+            #             f"Max: {valid_depth.max():.3f}m, Mean: {valid_depth.mean():.3f}m, "
+            #             f"Format: {depth_msg.format}, Size: {len(depth_msg.data)} bytes"
+            #         )
+            
+            #     depth_normalized = cv2.normalize(cv_image, None, 0, 255, cv2.NORM_MINMAX)
+            #     depth_color = cv2.applyColorMap(depth_normalized.astype(np.uint8), cv2.COLORMAP_TURBO)
+            #     cv2.imshow('/depth/image_raw/compressed', depth_color)
+            #     cv2.waitKey(1)
+
+            depth = self.bridge.compressed_imgmsg_to_cv2(depth_msg)
+            if depth is None:
+                self.get_logger().error('Failed to decode depth image')
+                return
+            
+            # Normalize to meters based on dtype
+            if depth.dtype == np.uint16:
                 depth_m = depth.astype(np.float32) / 1000.0  # mm → m
-            elif depth_msg.encoding in ('32FC1'):
-                depth_m = depth.astype(np.float32)
+            elif depth.dtype == np.float32:
+                depth_m = depth.astype(np.float32)  # already in meters
             else:
-                # try best effort: assume meters
-                depth_m = depth.astype(np.float32)
+                # Try to interpret as uint16 if unknown
+                depth_m = depth.astype(np.float32) / 1000.0
+                self.get_logger().warn(f'Unknown depth dtype: {depth.dtype}, assuming mm units')
         except Exception as e:
-            self.get_logger().error(f'depth cv bridge error: {e}')
+            self.get_logger().error(f'Depth decoding error ({type(e).__name__}): {e}')
             return
 
         annotated_image, pose_lm, face_lm, lhand_lm, rhand_lm, roi_ctx = self.process_image(color)
@@ -184,6 +212,11 @@ class FrontCameraNode(Node):
         # Use depth intrinsics (assuming depth is registered to color)
         fx = depth_info.k[0]; fy = depth_info.k[4]
         cx = depth_info.k[2]; cy = depth_info.k[5]
+
+        # Validate intrinsics
+        if fx <= 0.0 or fy <= 0.0:
+            self.get_logger().error(f'Invalid intrinsics: fx={fx}, fy={fy}')
+            return
 
         # rate limit TF
         now = self.get_clock().now()
