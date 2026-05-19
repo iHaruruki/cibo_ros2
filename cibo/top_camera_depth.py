@@ -3,7 +3,7 @@
 
 import rclpy
 from rclpy.node import Node
-from sensor_msgs.msg import Image, CameraInfo
+from sensor_msgs.msg import Image, CameraInfo, CompressedImage
 from std_msgs.msg import Float32MultiArray
 from cv_bridge import CvBridge
 import cv2
@@ -84,8 +84,8 @@ class TopCameraNode(Node):
         self.last_tf_time = self.get_clock().now()
 
         # ==== Subscribers with synchronization ====
-        color_sub = message_filters.Subscriber(self, Image, self.color_topic, qos_profile=10)
-        depth_sub = message_filters.Subscriber(self, Image, self.depth_topic, qos_profile=10)
+        color_sub = message_filters.Subscriber(self, CompressedImage, self.color_topic, qos_profile=10)
+        depth_sub = message_filters.Subscriber(self, CompressedImage, self.depth_topic, qos_profile=10)
         depth_info_sub = message_filters.Subscriber(self, CameraInfo, self.depth_info_topic, qos_profile=10)
 
         ats = message_filters.ApproximateTimeSynchronizer(
@@ -136,7 +136,8 @@ class TopCameraNode(Node):
     # ====================== Core ======================
     def synced_callback(self, color_msg: Image, depth_msg: Image, depth_info: CameraInfo):
         try:
-            color = self.bridge.imgmsg_to_cv2(color_msg, "bgr8")
+            np_arr = np.frombuffer(color_msg, np.uint8)
+            color = cv2.imdecode(np_arr, cv2.IMREAD_COLOR)
         except Exception as e:
             self.get_logger().error(f'color cv bridge error: {e}')
             return
