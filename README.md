@@ -20,18 +20,27 @@ Please follow link
 > 2025-10-14
 
 ### Installing dependent packages
+
+> [!IMPORTANT]
+> **詳細なインストール方法は [INSTALLATION.md](./INSTALLATION.md) を参照してください (日本語/English)**
+> 
+> **For detailed installation instructions, see [INSTALLATION.md](./INSTALLATION.md) (Japanese/English)**
+
+**Quick Setup:**
+
 Install C++ development packages (for building from source)
 ```bash
 sudo apt install -y build-essential cmake
 ```
 Install ros 2 packages
 ```bash
-sudo apt install -y ros-$ROS_DISTRO-cv-bridge ros-$ROS_DISTRO-image-transport ros-$ROS_DISTRO-theora-image-transport ros-$ROS_DISTRO-image-transport-plugins ros-$ROS_DISTRO-message-filters ros-$ROS_DISTRO-ffmpeg-image-transport ros-$ROS_DISTRO-ffmpeg-image-transport-tools ros-$ROS_DISTRO-xacro ros-$ROS_DISTRO-urdf-tutorial ros-$ROS_DISTRO-tf2-ros
+export ROS_DISTRO=humble
+sudo apt install -y ros-$ROS_DISTRO-cv-bridge ros-$ROS_DISTRO-image-transport ros-$ROS_DISTRO-image-transport-plugins ros-$ROS_DISTRO-message-filters ros-$ROS_DISTRO-tf2-ros ros-$ROS_DISTRO-sensor-msgs ros-$ROS_DISTRO-rviz2
 source /opt/ros/$ROS_DISTRO/setup.bash
 ```
 > [!NOTE]
 > This package is now implemented in C++ (rclcpp). Python packages are no longer required for the base functionality.
-> However, MediaPipe integration is not included in the C++ version yet. See the [Notes](#notes) section below.
+> However, MediaPipe integration is not included in the C++ version yet. See [INSTALLATION.md](./INSTALLATION.md) for MediaPipe integration options.
 
 ### Setup cibo Repositories
 Clone
