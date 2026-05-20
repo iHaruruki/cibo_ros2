@@ -20,16 +20,19 @@ Please follow link
 > 2025-10-14
 
 ### Installing dependent packages
-Install python packages
+Install C++ development packages (for building from source)
 ```bash
-pip3 install -U "numpy==1.26.4" "opencv-python==4.10.0.84"
-pip3 install opencv-python mediapipe
+sudo apt install -y build-essential cmake
 ```
 Install ros 2 packages
 ```bash
-sudo apt install -y ros-$ROS_DISTRO-cv-bridge ros-$ROS_DISTRO-image-transport ros-$ROS_DISTRO-theora-image-transport ros-$ROS_DISTRO-image-transport-plugins ros-$ROS_DISTRO-message-filters ros-$ROS_DISTRO-ffmpeg-image-transport ros-$ROS_DISTRO-ffmpeg-image-transport-tools ros-$ROS_DISTRO-xacro ros-$ROS_DISTRO-urdf-tutorial
+sudo apt install -y ros-$ROS_DISTRO-cv-bridge ros-$ROS_DISTRO-image-transport ros-$ROS_DISTRO-theora-image-transport ros-$ROS_DISTRO-image-transport-plugins ros-$ROS_DISTRO-message-filters ros-$ROS_DISTRO-ffmpeg-image-transport ros-$ROS_DISTRO-ffmpeg-image-transport-tools ros-$ROS_DISTRO-xacro ros-$ROS_DISTRO-urdf-tutorial ros-$ROS_DISTRO-tf2-ros
 source /opt/ros/$ROS_DISTRO/setup.bash
 ```
+> [!NOTE]
+> This package is now implemented in C++ (rclcpp). Python packages are no longer required for the base functionality.
+> However, MediaPipe integration is not included in the C++ version yet. See the [Notes](#notes) section below.
+
 ### Setup cibo Repositories
 Clone
 ```bash
@@ -102,6 +105,19 @@ ros2 bag record -a
 
 ## 👤 Authors
 - **[iHaruruki](https://github.com/iHaruruki)** — Main author & maintainer
+
+## 📝 Notes
+### C++ Implementation
+This package has been rewritten in C++ (rclcpp) for improved performance and efficiency compared to the original Python (rclpy) version. All ROS 2 topics and services maintain the same interfaces for compatibility.
+
+### MediaPipe Integration
+The original Python version included MediaPipe for pose estimation, hand detection, and face mesh detection. The C++ version currently provides the ROS 2 infrastructure and OpenCV-based image processing, but does not include MediaPipe landmark detection.
+
+To add pose/hand/face detection functionality to the C++ version, consider:
+1. **Using Python nodes via rclpy** - Keep Python detection nodes while using C++ for core infrastructure
+2. **MediaPipe C++ SDK** - If available for your platform
+3. **Alternative libraries** - OpenCV, TensorFlow Lite, or other pose detection libraries
+4. **Hybrid approach** - Use Python MediaPipe nodes for detection and C++ nodes for processing
 
 ## 📚 Reference
 ROS2
