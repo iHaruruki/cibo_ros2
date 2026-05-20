@@ -12,7 +12,6 @@
 #include <message_filters/sync_policies/approximate_time.h>
 #include <cv_bridge/cv_bridge.h>
 #include <opencv2/opencv.hpp>
-#include <tf2_ros/transform_broadcaster.h>
 #include <cmath>
 
 using CompressedImageMsg = sensor_msgs::msg::CompressedImage;
@@ -21,7 +20,7 @@ using SyncPolicy = message_filters::sync_policies::ApproximateTime<CompressedIma
 
 class TopCameraDepthNode : public rclcpp::Node {
 public:
-  TopCameraDepthNode() : Node("top_camera"), tf_broadcaster_(this) {
+  TopCameraDepthNode() : Node("top_camera") {
     // Declare parameters
     declare_parameter("min_detection_confidence", 0.6);
     declare_parameter("min_tracking_confidence", 0.6);
@@ -72,8 +71,6 @@ public:
         create_publisher<std_msgs::msg::Float32MultiArray>("/top_camera/left_hand_landmarks", 10);
     right_hand_landmarks_pub_ =
         create_publisher<std_msgs::msg::Float32MultiArray>("/top_camera/right_hand_landmarks", 10);
-
-    last_tf_time_ = now();
 
     RCLCPP_INFO(get_logger(), "Top Camera Depth Node initialized (hands only, with depth→3D & tf broadcasting)");
   }
@@ -225,23 +222,7 @@ private:
   rclcpp::Publisher<std_msgs::msg::Float32MultiArray>::SharedPtr left_hand_landmarks_pub_;
   rclcpp::Publisher<std_msgs::msg::Float32MultiArray>::SharedPtr right_hand_landmarks_pub_;
 
-  tf2_ros::TransformBroadcaster tf_broadcaster_;
-
-  bool dragging_ = false;
-  cv::Point start_point_{-1, -1};
-  cv::Point end_point_{-1, -1};
-
-  bool roi_enabled_ = false;
-  int roi_x_ = 0;
-  int roi_y_ = 0;
-  int roi_width_ = 400;
-  int roi_height_ = 300;
-
-  std::string color_topic_;
-  std::string depth_topic_;
-  std::string camera_frame_;
-  double tf_rate_hz_ = 30.0;
-  rclcpp::Time last_tf_time_;
+  // Note: tf_broadcaster infrastructure is ready for future pose detection integration
 };
 
 int main(int argc, char* argv[]) {

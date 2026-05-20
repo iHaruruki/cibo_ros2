@@ -142,11 +142,11 @@ private:
           if (!valid_depths.empty()) {
             float min_depth = (*std::min_element(valid_depths.begin(), valid_depths.end())) / 1000.0f;
             float max_depth = (*std::max_element(valid_depths.begin(), valid_depths.end())) / 1000.0f;
-            float mean_depth = 0;
+            float sum_depth = 0;
             for (uint16_t v : valid_depths) {
-              mean_depth += v;
+              sum_depth += v;
             }
-            mean_depth /= valid_depths.size() / 1000.0f;
+            float mean_depth = (sum_depth / valid_depths.size()) / 1000.0f;
 
             RCLCPP_INFO(get_logger(),
                         "Depth Compressed - Min: %.3f m, Max: %.3f m, Mean: %.3f m, Format: %s, "
