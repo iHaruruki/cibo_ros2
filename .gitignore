@@ -2,3 +2,12 @@
 log/
 Log/
 **/__pycache__/**
+build/
+install/
+devel/
+*.o
+*.a
+*.so
+*.swp
+*.swo
+*~
