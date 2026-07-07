@@ -1,0 +1,13 @@
+[project]
+name = "cibo"
+version = "1.0.0"
+description = "Add your description here"
+readme = "README.md"
+authors = [
+    { name = "Haruki Isono", email = "haruki.isono861@gmail.com" }
+]
+requires-python = ">=3.12"
+dependencies = [
+    "numpy<2",
+    "mediapipe==0.10.35"
+]

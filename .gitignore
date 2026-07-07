@@ -1,4 +1,6 @@
 .vscode/
 log/
 Log/
+.venv/
+uv.lock
 **/__pycache__/**
