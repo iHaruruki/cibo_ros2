@@ -10,6 +10,8 @@ requires-python = ">=3.12"
 dependencies = [
     "numpy<2.0",
     "mediapipe==0.10.14",
+    "protobuf==4.25.5",
+    "pyyaml>=6.0.3",
 ]
 
 [build-system]

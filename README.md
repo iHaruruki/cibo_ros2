@@ -49,6 +49,12 @@ sudo apt install -y ros-$ROS_DISTRO-cv-bridge ros-$ROS_DISTRO-image-transport ro
 source /opt/ros/$ROS_DISTRO/setup.bash
 ```
 
+Permission
+```bash
+cd ~/ros2_ws/src/cibo_ros2
+sudo chmod +x scripts/check_image_compressed.py scripts/image_show.py scripts/dual_camera_sync.py scripts/top_camera.py scripts/top_camera_depth.py scripts/front_camera.py scripts/front_camera_depth.py
+```
+
 Build
 ```bash
 cd ~/ros2_ws
