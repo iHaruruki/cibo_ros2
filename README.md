@@ -60,12 +60,12 @@ source install/setup.bash
 ### Camera launch
 Run Front camera
 ```bash
-# NUC36
+# NUC30
 ros2 launch cibo_ros2 astra_stereo_u3.launch.py camera_name:=front_camera
 ```
 Run Top camera
 ```bash
-# NUC30
+# NUC36
 ros2 launch cibo_ros2 astra_stereo_u3.launch.py camera_name:=top_camera
 ```
 
