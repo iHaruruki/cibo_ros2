@@ -1,5 +1,5 @@
 # cibo
-[![ROS 2 Distro - Humble](https://img.shields.io/badge/ros2-Humble-blue)](https://docs.ros.org/en/humble/)
+[![ROS 2 Distro - Jazzy](https://img.shields.io/badge/ros2-Jazzy-blue)](https://docs.ros.org/en/jazzy/)
 
 ## 🚀 Overview
 - Estimating human skeletal structure while eating.
@@ -22,8 +22,8 @@ Please follow link
 ### Installing dependent packages
 Install python packages
 ```bash
-pip3 install -U "numpy==1.26.4" "opencv-python==4.10.0.84"
-pip3 install opencv-python mediapipe
+cd ~/ros2_ws/src/cibo_ros2/
+uv sync
 ```
 Install ros 2 packages
 ```bash
@@ -33,30 +33,24 @@ source /opt/ros/$ROS_DISTRO/setup.bash
 ### Setup cibo Repositories
 Clone
 ```bash
-$ cd ~/ros2_ws/src
-$ git clone https://github.com/iHaruruki/cibo.git
+cd ~/ros2_ws/src
+git clone https://github.com/iHaruruki/cibo_ros2.git
 ```
 Build
 ```bash
-$ cd ~/ros2_ws
-$ colcon build --symlink-install --packages-select cibo
-$ source install/setup.bash
+cd ~/ros2_ws
+colcon build --symlink-install --packages-select cibo_ros2
+source install/setup.bash
 ```
 
 ## 🎮 How to use
-### Build
-```bash
-cd ~/ros2_ws
-colcon build --symlink-install --packages-select cibo
-source install/setup.bash
-```
 ### Camera launch
 Run Front camera
 ```bash
 # NUC36
 ros2 launch orbbec_camera astra_stereo_u3.launch.py camera_name:=front_camera
 ```
-Run Front camera
+Run Top camera
 ```bash
 # NUC30
 ros2 launch orbbec_camera astra_stereo_u3.launch.py camera_name:=top_camera
@@ -64,7 +58,7 @@ ros2 launch orbbec_camera astra_stereo_u3.launch.py camera_name:=top_camera
 
 ### Launch Cibo
 ```bash
-ros2 launch cibo cibo.launch.py
+ros2 launch cibo_ros2 cibo.launch.py
 ```
 How to Select an ROI (Specify the area for skeleton estimation) / ROI選択方法（骨格推定を行う範囲を指定する）
 1. After launching the node, the OpenCV window will appear.  
@@ -74,10 +68,10 @@ How to Select an ROI (Specify the area for skeleton estimation) / ROI選択方�
 3. A blue rectangle will appear while you drag, and a green rectangle will appear after you confirm.  
     ドラッグ中は青い矩形が表示され，確定後は緑の矩形で表示されます
 
-### View the output image.(OpenCV Image Show) / 出力画像を見る
+<!-- ### View the output image.(OpenCV Image Show) / 出力画像を見る
 ```bash
 ros2 run cibo image_show_node
-```
+``` -->
 
 ### [rosbag](https://docs.ros.org/en/humble/Tutorials/Beginner-CLI-Tools/Recording-And-Playing-Back-Data/Recording-And-Playing-Back-Data.html)
 If you want to record images, use rosbg. / 画像を録画したい場合は，rosbagを利用
@@ -164,4 +158,3 @@ LaTex
 - [数式の記述(markdown)](https://docs.github.com/ja/enterprise-cloud@latest/get-started/writing-on-github/working-with-advanced-formatting/writing-mathematical-expressions)
 
 ## 📜 License
-The source code is licensed MIT. Please see LICENSE.
