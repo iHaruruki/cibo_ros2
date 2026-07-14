@@ -20,6 +20,13 @@ Please follow link
 > 2025-10-14
 
 ### Installing dependent packages
+### Setup cibo Repositories
+Clone
+```bash
+cd ~/ros2_ws/src
+git clone https://github.com/iHaruruki/cibo_ros2.git
+```
+
 Install `UV`
 ```bash
 curl -LsSf https://astral.sh/uv/install.sh | sh
@@ -42,12 +49,6 @@ sudo apt install -y ros-$ROS_DISTRO-cv-bridge ros-$ROS_DISTRO-image-transport ro
 source /opt/ros/$ROS_DISTRO/setup.bash
 ```
 
-### Setup cibo Repositories
-Clone
-```bash
-cd ~/ros2_ws/src
-git clone https://github.com/iHaruruki/cibo_ros2.git
-```
 Build
 ```bash
 cd ~/ros2_ws
@@ -60,12 +61,12 @@ source install/setup.bash
 Run Front camera
 ```bash
 # NUC36
-ros2 launch orbbec_camera astra_stereo_u3.launch.py camera_name:=front_camera
+ros2 launch cibo_ros2 astra_stereo_u3.launch.py camera_name:=front_camera
 ```
 Run Top camera
 ```bash
 # NUC30
-ros2 launch orbbec_camera astra_stereo_u3.launch.py camera_name:=top_camera
+ros2 launch cibo_ros2 astra_stereo_u3.launch.py camera_name:=top_camera
 ```
 
 ### Launch Cibo
