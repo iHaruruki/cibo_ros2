@@ -20,16 +20,28 @@ Please follow link
 > 2025-10-14
 
 ### Installing dependent packages
+Install `UV`
+```bash
+curl -LsSf https://astral.sh/uv/install.sh | sh
+echo 'eval "$(uv generate-shell-completion bash)"' >> ~/.bashrc
+echo 'eval "$(uvx --generate-shell-completion bash)"' >> ~/.bashrc
+```
+> [!TIP]
+> uvは、Pythonの高速なプロジェクトおよびパッケージ管理ツールです。Python環境の構築を劇的に簡素化し、従来は別々のツールで行っていた作業（pip、venv、poetry、pyenvなど）を単独で代替できるのが特徴です。
+> [Installing uv](https://docs.astral.sh/uv/getting-started/installation/)
+
 Install python packages
 ```bash
 cd ~/ros2_ws/src/cibo_ros2/
 uv sync
 ```
+
 Install ros 2 packages
 ```bash
 sudo apt install -y ros-$ROS_DISTRO-cv-bridge ros-$ROS_DISTRO-image-transport ros-$ROS_DISTRO-theora-image-transport ros-$ROS_DISTRO-image-transport-plugins ros-$ROS_DISTRO-message-filters ros-$ROS_DISTRO-ffmpeg-image-transport ros-$ROS_DISTRO-ffmpeg-image-transport-tools ros-$ROS_DISTRO-xacro ros-$ROS_DISTRO-urdf-tutorial
 source /opt/ros/$ROS_DISTRO/setup.bash
 ```
+
 ### Setup cibo Repositories
 Clone
 ```bash
