@@ -58,7 +58,7 @@ class TopCameraNode(Node):
         
         # Subscriber
         self.image_sub = self.create_subscription(
-            Image, '/camera_02/color/image_raw', self.image_callback, 10)
+            Image, '/top_camera/color/image_raw', self.image_callback, 10)
         
         # Publishers
         self.annotated_pub = self.create_publisher(

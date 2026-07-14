@@ -68,7 +68,7 @@ class FrontCameraNode(Node):
         
         # Subscriber
         self.image_sub = self.create_subscription(
-            Image, '/camera_01/color/image_raw', self.image_callback, 10)
+            Image, '/front_camera/color/image_raw', self.image_callback, 10)
         
         # Publishers
         self.annotated_pub = self.create_publisher(
