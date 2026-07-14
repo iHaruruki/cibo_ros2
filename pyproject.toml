@@ -1,6 +1,6 @@
 [project]
-name = "cibo"
-version = "1.0.0"
+name = "cibo-ros2"
+version = "0.1.0"
 description = "Add your description here"
 readme = "README.md"
 authors = [
@@ -8,6 +8,10 @@ authors = [
 ]
 requires-python = ">=3.12"
 dependencies = [
-    "numpy<2",
-    "mediapipe==0.10.35"
+    "numpy<2.0",
+    "mediapipe==0.10.14",
 ]
+
+[build-system]
+requires = ["uv_build>=0.11.27,<0.12.0"]
+build-backend = "uv_build"

@@ -1,6 +1,4 @@
-# unified_camera_node.py
-# Copyright (c) 2025 Haruki Isono
-# This software is released under the MIT License, see LICENSE.
+#!/usr/bin/env python3
 
 import rclpy
 from rclpy.node import Node
