@@ -36,9 +36,9 @@ class FrontCameraNode(Node):
         self.declare_parameter('roi_height', 300)
 
         # topics / frames
-        self.declare_parameter('color_topic', '/front_camera/color/image_raw/compressed')
+        self.declare_parameter('color_topic', '/front_camera/color/image_raw')
         self.declare_parameter('color_info_topic', '/front_camera/color/camera_info')
-        self.declare_parameter('depth_topic', '/front_camera/depth/image_raw/compressedDepth')
+        self.declare_parameter('depth_topic', '/front_camera/depth/image_raw')
         self.declare_parameter('depth_info_topic', '/front_camera/depth/camera_info')
         self.declare_parameter('camera_frame', 'front_camera_depth_optical_frame')
         self.declare_parameter('publish_face_tf', False)  # 顔478点は重いので既定OFF
@@ -92,8 +92,8 @@ class FrontCameraNode(Node):
         self.last_tf_time = self.get_clock().now()
 
         # ==== Subscribers with synchronization ====
-        color_sub = message_filters.Subscriber(self, CompressedImage, self.color_topic, qos_profile=10)
-        depth_sub = message_filters.Subscriber(self, CompressedImage, self.depth_topic, qos_profile=10)
+        color_sub = message_filters.Subscriber(self, Image, self.color_topic, qos_profile=10)
+        depth_sub = message_filters.Subscriber(self, Image, self.depth_topic, qos_profile=10)
         depth_info_sub = message_filters.Subscriber(self, CameraInfo, self.depth_info_topic, qos_profile=10)
         # （カラーの CameraInfo も必要なら追加同期可。ここでは深度側を用いる前提：depth が color に整列済み）
 
@@ -145,8 +145,7 @@ class FrontCameraNode(Node):
     # ====================== Core ======================
     def synced_callback(self, color_msg: CompressedImage, depth_msg: CompressedImage, depth_info: CameraInfo):
         try:
-            color_data = np.frombuffer(color_msg.data, np.uint8)
-            color = cv2.imdecode(color_data, cv2.IMREAD_COLOR)
+            color = self.bridge.imgmsg_to_cv2(color_msg, desired_encoding="bgr8")
             if color is None:
                 self.get_logger().error('Failed to decode color image')
                 return
@@ -176,7 +175,7 @@ class FrontCameraNode(Node):
             #     cv2.imshow('/depth/image_raw/compressed', depth_color)
             #     cv2.waitKey(1)
 
-            depth = self.bridge.compressed_imgmsg_to_cv2(depth_msg)
+            depth = self.bridge.imgmsg_to_cv2(depth_msg, desired_encoding="passthrough")
             if depth is None:
                 self.get_logger().error('Failed to decode depth image')
                 return
