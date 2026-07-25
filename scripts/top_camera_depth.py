@@ -2,7 +2,7 @@
 
 import rclpy
 from rclpy.node import Node
-from sensor_msgs.msg import Image, CameraInfo, CompressedImage
+from sensor_msgs.msg import Image, CameraInfo
 from std_msgs.msg import Float32MultiArray
 from cv_bridge import CvBridge
 import cv2
@@ -83,8 +83,8 @@ class TopCameraNode(Node):
         self.last_tf_time = self.get_clock().now()
 
         # ==== Subscribers with synchronization ====
-        color_sub = message_filters.Subscriber(self, CompressedImage, self.color_topic, qos_profile=10)
-        depth_sub = message_filters.Subscriber(self, CompressedImage, self.depth_topic, qos_profile=10)
+        color_sub = message_filters.Subscriber(self, Image, self.color_topic, qos_profile=10)
+        depth_sub = message_filters.Subscriber(self, Image, self.depth_topic, qos_profile=10)
         depth_info_sub = message_filters.Subscriber(self, CameraInfo, self.depth_info_topic, qos_profile=10)
 
         ats = message_filters.ApproximateTimeSynchronizer(
@@ -135,15 +135,14 @@ class TopCameraNode(Node):
     # ====================== Core ======================
     def synced_callback(self, color_msg: Image, depth_msg: Image, depth_info: CameraInfo):
         try:
-            np_arr = np.frombuffer(color_msg, np.uint8)
-            color = cv2.imdecode(np_arr, cv2.IMREAD_COLOR)
+            color = self.bridge.imgmsg_to_cv2(color_msg, desired_encoding="bgr8")
         except Exception as e:
             self.get_logger().error(f'color cv bridge error: {e}')
             return
 
         # depth image decoding
         try:
-            depth = self.bridge.imgmsg_to_cv2(depth_msg)
+            depth = self.bridge.imgmsg_to_cv2(depth_msg, desired_encoding="passthrough")
             # normalize units to meters
             if depth_msg.encoding in ('16UC1', 'mono16'):
                 depth_m = depth.astype(np.float32) / 1000.0  # mm → m
