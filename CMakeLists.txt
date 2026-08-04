@@ -23,6 +23,8 @@ install(
     scripts/image_show.py
     scripts/top_camera_depth.py
     scripts/top_camera.py
+    scripts/food_detection_and_access_tracking.py
+    scripts/htm_chewing.py
   DESTINATION lib/${PROJECT_NAME}
 )
 
