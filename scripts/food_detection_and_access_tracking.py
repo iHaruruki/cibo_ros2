@@ -280,10 +280,10 @@ class FoodVolumeNode(Node):
         self.bridge = CvBridge()
 
         # Parameters
-        self.declare_parameter("color_topic", "/camera_02/color/image_raw")
-        self.declare_parameter("color_info_topic", "/camera_02/color/camera_info")
-        self.declare_parameter("depth_topic", "/camera_02/depth/image_raw")
-        self.declare_parameter("depth_info_topic", "/camera_02/depth/camera_info")
+        self.declare_parameter("color_topic", "/top_camera/color/image_raw")
+        self.declare_parameter("color_info_topic", "/top_camera/color/camera_info")
+        self.declare_parameter("depth_topic", "/top_camera/depth/image_raw")
+        self.declare_parameter("depth_info_topic", "/top_camera/depth/camera_info")
 
         self.color_topic = self.get_parameter("color_topic").get_parameter_value().string_value
         self.color_info_topic = self.get_parameter("color_info_topic").get_parameter_value().string_value
