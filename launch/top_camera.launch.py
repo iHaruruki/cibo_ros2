@@ -28,8 +28,8 @@ def generate_launch_description():
     
     mediapipe_node_cmd = Node(
         package="cibo_ros2",
-        executable="front_camera_depth.py",
-        name="front_camera_depth",
+        executable="top_camera_depth.py",
+        name="top_camera_depth",
         namespace=namespace,
         additional_env={"PYTHONPATH": new_pythonpath},
     )
