@@ -182,7 +182,7 @@ Image Compression
 - [ROS 2のffmpeg_image_transportパッケージを使って効率よく画像トピックを配信、購読する](https://qiita.com/dandelion1124/items/deed014872624fd9a50c)
 
 supervision
-[supervision](https://supervision.roboflow.com/latest/)
+- [supervision](https://supervision.roboflow.com/latest/)
 
 tf2_ros / TransformBroadcaster（Python）
 - [Writing a broadcaster (Python)](https://docs.ros.org/en/foxy/Tutorials/Intermediate/Tf2/Writing-A-Tf2-Broadcaster-Py.html?utm_source=chatgpt.com)
