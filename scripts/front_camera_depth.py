@@ -12,6 +12,8 @@ from tf2_ros import TransformBroadcaster
 from geometry_msgs.msg import TransformStamped
 import message_filters
 from rclpy.parameter import Parameter
+from visualization_msgs.msg import Marker, MarkerArray
+from builtin_interfaces.msg import Duration
 
 class FrontCameraNode(Node):
     def __init__(self):
@@ -41,8 +43,14 @@ class FrontCameraNode(Node):
         self.declare_parameter('depth_topic', '/front_camera/depth/image_raw')
         self.declare_parameter('depth_info_topic', '/front_camera/depth/camera_info')
         self.declare_parameter('camera_frame', 'front_camera_depth_optical_frame')
-        self.declare_parameter('publish_face_tf', True)  # 顔478点は重いので既定OFF
+        self.declare_parameter('publish_face_tf', True)   # 顔478点は重いので必要に応じてOFF
         self.declare_parameter('tf_rate_hz', 30.0)        # tfスロットリング
+
+        # marker params
+        self.declare_parameter('publish_markers', True)
+        self.declare_parameter('marker_topic', '/front_camera/landmark_markers')
+        self.declare_parameter('marker_scale', 0.015)     # sphere直径[m]
+        self.declare_parameter('marker_lifetime_sec', 0.2)
 
         # Read params
         min_det = float(self.get_parameter('min_detection_confidence').value)
@@ -61,6 +69,11 @@ class FrontCameraNode(Node):
         self.publish_face_tf = bool(self.get_parameter('publish_face_tf').value)
         self.tf_rate_hz = float(self.get_parameter('tf_rate_hz').value)
 
+        self.publish_markers = bool(self.get_parameter('publish_markers').value)
+        self.marker_topic = self.get_parameter('marker_topic').value
+        self.marker_scale = float(self.get_parameter('marker_scale').value)
+        self.marker_lifetime_sec = float(self.get_parameter('marker_lifetime_sec').value)
+
         # ==== MediaPipe Initializations ====
         self.holistic = self.mp_holistic.Holistic(
             min_detection_confidence=min_det,
@@ -77,7 +90,6 @@ class FrontCameraNode(Node):
         self.dragging = False
         self.start_point = None
         self.end_point = None
-
         self.setup_opencv_window()
 
         # ==== Publishers ====
@@ -86,6 +98,7 @@ class FrontCameraNode(Node):
         self.face_landmarks_pub = self.create_publisher(Float32MultiArray, '/front_camera/face_landmarks', 10)
         self.left_hand_landmarks_pub = self.create_publisher(Float32MultiArray, '/front_camera/left_hand_landmarks', 10)
         self.right_hand_landmarks_pub = self.create_publisher(Float32MultiArray, '/front_camera/right_hand_landmarks', 10)
+        self.marker_pub = self.create_publisher(MarkerArray, self.marker_topic, 10)
 
         # ==== TF Broadcaster ====
         self.tf_broadcaster = TransformBroadcaster(self)
@@ -95,14 +108,13 @@ class FrontCameraNode(Node):
         color_sub = message_filters.Subscriber(self, Image, self.color_topic, qos_profile=10)
         depth_sub = message_filters.Subscriber(self, Image, self.depth_topic, qos_profile=10)
         depth_info_sub = message_filters.Subscriber(self, CameraInfo, self.depth_info_topic, qos_profile=10)
-        # （カラーの CameraInfo も必要なら追加同期可。ここでは深度側を用いる前提：depth が color に整列済み）
 
         ats = message_filters.ApproximateTimeSynchronizer(
             [color_sub, depth_sub, depth_info_sub], queue_size=20, slop=0.05
         )
         ats.registerCallback(self.synced_callback)
 
-        self.get_logger().info('Front Camera Node initialized (with depth→3D & tf broadcasting)')
+        self.get_logger().info('Front Camera Node initialized (with depth→3D, tf & marker broadcasting)')
 
     # ====================== GUI (ROI) ======================
     def setup_opencv_window(self):
@@ -142,8 +154,40 @@ class FrontCameraNode(Node):
                 ])
                 self.get_logger().info(f'ROI set: x={self.roi_x}, y={self.roi_y}, w={self.roi_width}, h={self.roi_height}')
 
+    # ====================== Marker helper ======================
+    def _make_marker(self, marker_id, ns, xyz, rgb, stamp, scale=0.015):
+        m = Marker()
+        m.header.frame_id = self.camera_frame
+        m.header.stamp = stamp
+        m.ns = ns
+        m.id = marker_id
+        m.type = Marker.SPHERE
+        m.action = Marker.ADD
+
+        m.pose.position.x = float(xyz[0])
+        m.pose.position.y = float(xyz[1])
+        m.pose.position.z = float(xyz[2])
+        m.pose.orientation.x = 0.0
+        m.pose.orientation.y = 0.0
+        m.pose.orientation.z = 0.0
+        m.pose.orientation.w = 1.0
+
+        m.scale.x = scale
+        m.scale.y = scale
+        m.scale.z = scale
+
+        m.color.r = float(rgb[0])
+        m.color.g = float(rgb[1])
+        m.color.b = float(rgb[2])
+        m.color.a = 1.0
+
+        sec = int(self.marker_lifetime_sec)
+        nsec = int((self.marker_lifetime_sec - sec) * 1e9)
+        m.lifetime = Duration(sec=sec, nanosec=nsec)
+        return m
+
     # ====================== Core ======================
-    def synced_callback(self, color_msg: CompressedImage, depth_msg: CompressedImage, depth_info: CameraInfo):
+    def synced_callback(self, color_msg: Image, depth_msg: Image, depth_info: CameraInfo):
         try:
             color = self.bridge.imgmsg_to_cv2(color_msg, desired_encoding="bgr8")
             if color is None:
@@ -154,39 +198,17 @@ class FrontCameraNode(Node):
             return
 
         try:
-            # compressedDepth is a special ROS format, use cv_bridge with explicit handling
-            # depth_header = depth_msg.data[:12]
-            # depth_data = depth_msg.data[12:]
-
-            # np_arr = np.frombuffer(depth_data, np.uint8)
-            # cv_image = cv2.imdecode(np_arr, cv2.IMREAD_ANYDEPTH)
-
-            # if cv_image is not None:
-            #     valid_depth = cv_image[cv_image > 0]
-            #     if len(valid_depth) > 0:
-            #         self.get_logger().info(
-            #             f"Depth Compressed - Min: {valid_depth.min():.3f}m, "
-            #             f"Max: {valid_depth.max():.3f}m, Mean: {valid_depth.mean():.3f}m, "
-            #             f"Format: {depth_msg.format}, Size: {len(depth_msg.data)} bytes"
-            #         )
-            
-            #     depth_normalized = cv2.normalize(cv_image, None, 0, 255, cv2.NORM_MINMAX)
-            #     depth_color = cv2.applyColorMap(depth_normalized.astype(np.uint8), cv2.COLORMAP_TURBO)
-            #     cv2.imshow('/depth/image_raw/compressed', depth_color)
-            #     cv2.waitKey(1)
-
             depth = self.bridge.imgmsg_to_cv2(depth_msg, desired_encoding="passthrough")
             if depth is None:
                 self.get_logger().error('Failed to decode depth image')
                 return
-            
+
             # Normalize to meters based on dtype
             if depth.dtype == np.uint16:
                 depth_m = depth.astype(np.float32) / 1000.0  # mm → m
             elif depth.dtype == np.float32:
-                depth_m = depth.astype(np.float32)  # already in meters
+                depth_m = depth.astype(np.float32)           # already in meters
             else:
-                # Try to interpret as uint16 if unknown
                 depth_m = depth.astype(np.float32) / 1000.0
                 self.get_logger().warn(f'Unknown depth dtype: {depth.dtype}, assuming mm units')
         except Exception as e:
@@ -206,44 +228,42 @@ class FrontCameraNode(Node):
         self._publish_array(self.left_hand_landmarks_pub, lhand_lm)
         self._publish_array(self.right_hand_landmarks_pub, rhand_lm)
 
-        # 3D projection & TF
-        # Use depth intrinsics (assuming depth is registered to color)
-        fx = depth_info.k[0]; fy = depth_info.k[4]
-        cx = depth_info.k[2]; cy = depth_info.k[5]
+        # 3D projection & TF/Marker
+        fx = depth_info.k[0]
+        fy = depth_info.k[4]
+        cx = depth_info.k[2]
+        cy = depth_info.k[5]
 
-        # Validate intrinsics
         if fx <= 0.0 or fy <= 0.0:
             self.get_logger().error(f'Invalid intrinsics: fx={fx}, fy={fy}')
             return
 
-        # rate limit TF
+        # rate limit TF(+Marker)
         now = self.get_clock().now()
         if (now - self.last_tf_time).nanoseconds < (1e9 / self.tf_rate_hz):
             return
         self.last_tf_time = now
 
-        # ROI offset to full image coords
-        roi_x, roi_y, roi_w, roi_h, roi_enabled = roi_ctx
+        marker_array = MarkerArray()
+        marker_id = 0
 
-        # Helper to loop & broadcast
-        def broadcast_set(flat_xyz, prefix):
-            # flat list [x_pix, y_pix, z_mp, ...]
+        def broadcast_and_collect(flat_xyz, prefix, ns, rgb):
+            nonlocal marker_id
             n = len(flat_xyz) // 3
             for i in range(n):
-                u = float(flat_xyz[3*i + 0])
-                v = float(flat_xyz[3*i + 1])
-                # clamp to image bounds
-                u_i = int(np.clip(u, 0, depth_m.shape[1]-1))
-                v_i = int(np.clip(v, 0, depth_m.shape[0]-1))
-                z = self._robust_depth(depth_m, v_i, u_i)  # meters
+                u = float(flat_xyz[3 * i + 0])
+                v = float(flat_xyz[3 * i + 1])
 
+                u_i = int(np.clip(u, 0, depth_m.shape[1] - 1))
+                v_i = int(np.clip(v, 0, depth_m.shape[0] - 1))
+                z = self._robust_depth(depth_m, v_i, u_i)  # meters
                 if not np.isfinite(z) or z <= 0.0:
                     continue
 
                 X = (u - cx) / fx * z
                 Y = (v - cy) / fy * z
-                # camera optical frame: X right, Y down, Z forward (ROS REP 103 optical)
-                # Transform with identity rotation; only translation
+
+                # TF
                 t = TransformStamped()
                 t.header.stamp = color_msg.header.stamp
                 t.header.frame_id = self.camera_frame
@@ -251,35 +271,58 @@ class FrontCameraNode(Node):
                 t.transform.translation.x = float(X)
                 t.transform.translation.y = float(Y)
                 t.transform.translation.z = float(z)
-                # no rotation (identity)
                 t.transform.rotation.x = 0.0
                 t.transform.rotation.y = 0.0
                 t.transform.rotation.z = 0.0
                 t.transform.rotation.w = 1.0
                 self.tf_broadcaster.sendTransform(t)
 
-        # Note: pose=33, hands=21 each, face=478(任意)
+                # Marker
+                if self.publish_markers:
+                    marker_array.markers.append(
+                        self._make_marker(
+                            marker_id=marker_id,
+                            ns=ns,
+                            xyz=(X, Y, z),
+                            rgb=rgb,
+                            stamp=color_msg.header.stamp,
+                            scale=self.marker_scale
+                        )
+                    )
+                    marker_id += 1
+
         if pose_lm:
-            broadcast_set(pose_lm, 'front_camera_pose')
+            broadcast_and_collect(pose_lm, 'front_camera_pose', 'pose', (1.0, 0.2, 0.2))
         if lhand_lm:
-            broadcast_set(lhand_lm, 'front_camera_left_hand')
+            broadcast_and_collect(lhand_lm, 'front_camera_left_hand', 'left_hand', (0.2, 1.0, 0.2))
         if rhand_lm:
-            broadcast_set(rhand_lm, 'front_camera_right_hand')
+            broadcast_and_collect(rhand_lm, 'front_camera_right_hand', 'right_hand', (0.2, 0.2, 1.0))
         if self.publish_face_tf and face_lm:
-            broadcast_set(face_lm, 'front_camera_face')
+            broadcast_and_collect(face_lm, 'front_camera_face', 'face', (1.0, 1.0, 0.2))
+
+        if self.publish_markers:
+            self.marker_pub.publish(marker_array)
 
         # Show ROI helper window
         disp = annotated_image.copy()
         if self.roi_enabled and self.roi_width > 0 and self.roi_height > 0:
-            cv2.rectangle(disp, (self.roi_x, self.roi_y),
-                          (self.roi_x + self.roi_width, self.roi_y + self.roi_height), (0, 255, 0), 2)
-            cv2.putText(disp, 'ROI', (self.roi_x, self.roi_y - 10),
-                        cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 0), 2)
+            cv2.rectangle(
+                disp,
+                (self.roi_x, self.roi_y),
+                (self.roi_x + self.roi_width, self.roi_y + self.roi_height),
+                (0, 255, 0), 2
+            )
+            cv2.putText(
+                disp, 'ROI', (self.roi_x, self.roi_y - 10),
+                cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 0), 2
+            )
         if self.dragging and self.start_point and self.end_point:
             cv2.rectangle(disp, self.start_point, self.end_point, (255, 0, 0), 2)
-            cv2.putText(disp, 'Selecting ROI...',
-                        (self.start_point[0], self.start_point[1] - 10),
-                        cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 0, 0), 2)
+            cv2.putText(
+                disp, 'Selecting ROI...',
+                (self.start_point[0], self.start_point[1] - 10),
+                cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 0, 0), 2
+            )
 
         cv2.putText(disp, 'Drag to select ROI', (10, 30),
                     cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 0), 2)
@@ -301,8 +344,10 @@ class FrontCameraNode(Node):
     def _robust_depth(self, depth_m, v, u):
         """3x3 median (ignore zeros) → meters"""
         h, w = depth_m.shape
-        v0 = max(0, v-1); v1 = min(h, v+2)
-        u0 = max(0, u-1); u1 = min(w, u+2)
+        v0 = max(0, v - 1)
+        v1 = min(h, v + 2)
+        u0 = max(0, u - 1)
+        u1 = min(w, u + 2)
         patch = depth_m[v0:v1, u0:u1].reshape(-1)
         vals = patch[np.isfinite(patch) & (patch > 0.0)]
         if vals.size == 0:
@@ -315,8 +360,8 @@ class FrontCameraNode(Node):
 
         # ROI crop
         if self.roi_enabled and self.roi_width > 0 and self.roi_height > 0:
-            roi_x = int(np.clip(self.roi_x, 0, width-1))
-            roi_y = int(np.clip(self.roi_y, 0, height-1))
+            roi_x = int(np.clip(self.roi_x, 0, width - 1))
+            roi_y = int(np.clip(self.roi_y, 0, height - 1))
             roi_x2 = int(np.clip(roi_x + self.roi_width, 0, width))
             roi_y2 = int(np.clip(roi_y + self.roi_height, 0, height))
             processing_image = cv_image[roi_y:roi_y2, roi_x:roi_x2]
@@ -342,19 +387,22 @@ class FrontCameraNode(Node):
         if holistic_results.pose_landmarks:
             self.mp_drawing.draw_landmarks(
                 annotated, holistic_results.pose_landmarks, self.mp_holistic.POSE_CONNECTIONS,
-                landmark_drawing_spec=self.mp_drawing_styles.get_default_pose_landmarks_style())
+                landmark_drawing_spec=self.mp_drawing_styles.get_default_pose_landmarks_style()
+            )
 
         if holistic_results.left_hand_landmarks:
             self.mp_drawing.draw_landmarks(
                 annotated, holistic_results.left_hand_landmarks, self.mp_holistic.HAND_CONNECTIONS,
                 landmark_drawing_spec=self.mp_drawing_styles.get_default_hand_landmarks_style(),
-                connection_drawing_spec=self.mp_drawing_styles.get_default_hand_connections_style())
+                connection_drawing_spec=self.mp_drawing_styles.get_default_hand_connections_style()
+            )
 
         if holistic_results.right_hand_landmarks:
             self.mp_drawing.draw_landmarks(
                 annotated, holistic_results.right_hand_landmarks, self.mp_holistic.HAND_CONNECTIONS,
                 landmark_drawing_spec=self.mp_drawing_styles.get_default_hand_landmarks_style(),
-                connection_drawing_spec=self.mp_drawing_styles.get_default_hand_connections_style())
+                connection_drawing_spec=self.mp_drawing_styles.get_default_hand_connections_style()
+            )
 
         # Face mesh (with iris)
         if face_results.multi_face_landmarks:
@@ -362,17 +410,20 @@ class FrontCameraNode(Node):
                 self.mp_drawing.draw_landmarks(
                     annotated, face_landmarks, self.mp_face_mesh.FACEMESH_TESSELATION,
                     landmark_drawing_spec=None,
-                    connection_drawing_spec=self.mp_drawing_styles.get_default_face_mesh_tesselation_style())
+                    connection_drawing_spec=self.mp_drawing_styles.get_default_face_mesh_tesselation_style()
+                )
 
                 self.mp_drawing.draw_landmarks(
                     annotated, face_landmarks, self.mp_face_mesh.FACEMESH_CONTOURS,
                     landmark_drawing_spec=None,
-                    connection_drawing_spec=self.mp_drawing_styles.get_default_face_mesh_contours_style())
+                    connection_drawing_spec=self.mp_drawing_styles.get_default_face_mesh_contours_style()
+                )
 
                 self.mp_drawing.draw_landmarks(
                     annotated, face_landmarks, self.mp_face_mesh.FACEMESH_IRISES,
                     landmark_drawing_spec=None,
-                    connection_drawing_spec=self.mp_drawing_styles.get_default_face_mesh_iris_connections_style())
+                    connection_drawing_spec=self.mp_drawing_styles.get_default_face_mesh_iris_connections_style()
+                )
 
         # Stitch back into full image if ROI
         if self.roi_enabled and self.roi_width > 0 and self.roi_height > 0:
@@ -382,10 +433,18 @@ class FrontCameraNode(Node):
             full_annotated = annotated
 
         # Extract landmarks in full-image pixel coords (x_pix, y_pix, z_mp)
-        pose_landmarks = self.extract_pose_landmarks(holistic_results, width, height, roi_offset, (roi_x, roi_y, roi_x2, roi_y2))
-        face_landmarks = self.extract_face_landmarks(face_results, width, height, roi_offset, (roi_x, roi_y, roi_x2, roi_y2))
-        left_hand_landmarks = self.extract_hand_landmarks(holistic_results.left_hand_landmarks, width, height, roi_offset, (roi_x, roi_y, roi_x2, roi_y2))
-        right_hand_landmarks = self.extract_hand_landmarks(holistic_results.right_hand_landmarks, width, height, roi_offset, (roi_x, roi_y, roi_x2, roi_y2))
+        pose_landmarks = self.extract_pose_landmarks(
+            holistic_results, width, height, roi_offset, (roi_x, roi_y, roi_x2, roi_y2)
+        )
+        face_landmarks = self.extract_face_landmarks(
+            face_results, width, height, roi_offset, (roi_x, roi_y, roi_x2, roi_y2)
+        )
+        left_hand_landmarks = self.extract_hand_landmarks(
+            holistic_results.left_hand_landmarks, width, height, roi_offset, (roi_x, roi_y, roi_x2, roi_y2)
+        )
+        right_hand_landmarks = self.extract_hand_landmarks(
+            holistic_results.right_hand_landmarks, width, height, roi_offset, (roi_x, roi_y, roi_x2, roi_y2)
+        )
 
         roi_ctx = (self.roi_x, self.roi_y, self.roi_width, self.roi_height, self.roi_enabled)
         return full_annotated, pose_landmarks, face_landmarks, left_hand_landmarks, right_hand_landmarks, roi_ctx
@@ -396,7 +455,7 @@ class FrontCameraNode(Node):
             for lm in results.pose_landmarks.landmark:
                 x = lm.x * (roi_bbox[2] - roi_bbox[0]) + roi_offset[0]
                 y = lm.y * (roi_bbox[3] - roi_bbox[1]) + roi_offset[1]
-                z = lm.z  # MediaPipeの相対Z（参考までに保持）
+                z = lm.z
                 landmarks.extend([x, y, z])
         return landmarks
 
