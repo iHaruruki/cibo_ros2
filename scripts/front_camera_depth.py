@@ -41,7 +41,7 @@ class FrontCameraNode(Node):
         self.declare_parameter('depth_topic', '/front_camera/depth/image_raw')
         self.declare_parameter('depth_info_topic', '/front_camera/depth/camera_info')
         self.declare_parameter('camera_frame', 'front_camera_depth_optical_frame')
-        self.declare_parameter('publish_face_tf', False)  # 顔478点は重いので既定OFF
+        self.declare_parameter('publish_face_tf', True)  # 顔478点は重いので既定OFF
         self.declare_parameter('tf_rate_hz', 30.0)        # tfスロットリング
 
         # Read params
