@@ -63,7 +63,7 @@ source install/setup.bash
 ```
 
 ## 🎮 How to use
-### Camera launch
+### Cibo 1
 Run Front camera
 ```bash
 # NUC30
@@ -74,11 +74,28 @@ Run Top camera
 # NUC36
 ros2 launch cibo_ros2 astra_stereo_u3.launch.py camera_name:=top_camera
 ```
-
-### Launch Cibo
+Run mediapipe
 ```bash
 ros2 launch cibo_ros2 cibo.launch.py
 ```
+
+### Cibo 2
+Run Front camera
+```bash
+# NUC37
+ros2 launch cibo_ros2 astra_stereo_u3.launch.py camera_name:=front_camera
+```
+Run Top camera
+```bash
+# NUC32
+ros2 launch cibo_ros2 astra_stereo_u3.launch.py camera_name:=top_camera
+```
+Run mediapipe
+```bash
+ros2 launch cibo_ros2 cibo.launch.py
+```
+
+## ROI
 How to Select an ROI (Specify the area for skeleton estimation) / ROI選択方法（骨格推定を行う範囲を指定する）
 1. After launching the node, the OpenCV window will appear.  
     ノード起動後，OpenCVウィンドウが表示されます
