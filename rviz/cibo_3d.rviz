@@ -1105,6 +1105,48 @@ Visualization Manager:
           Value: true
         front_camera_ir_optical_frame:
           Value: true
+        front_camera_left_hand_0:
+          Value: false
+        front_camera_left_hand_1:
+          Value: false
+        front_camera_left_hand_10:
+          Value: false
+        front_camera_left_hand_11:
+          Value: false
+        front_camera_left_hand_12:
+          Value: false
+        front_camera_left_hand_13:
+          Value: false
+        front_camera_left_hand_14:
+          Value: false
+        front_camera_left_hand_15:
+          Value: false
+        front_camera_left_hand_16:
+          Value: false
+        front_camera_left_hand_17:
+          Value: false
+        front_camera_left_hand_18:
+          Value: false
+        front_camera_left_hand_19:
+          Value: false
+        front_camera_left_hand_2:
+          Value: false
+        front_camera_left_hand_20:
+          Value: false
+        front_camera_left_hand_3:
+          Value: false
+        front_camera_left_hand_4:
+          Value: false
+        front_camera_left_hand_5:
+          Value: false
+        front_camera_left_hand_6:
+          Value: false
+        front_camera_left_hand_7:
+          Value: false
+        front_camera_left_hand_8:
+          Value: false
+        front_camera_left_hand_9:
+          Value: false
         front_camera_link:
           Value: true
         front_camera_pose_0:
@@ -1117,7 +1159,31 @@ Visualization Manager:
           Value: false
         front_camera_pose_12:
           Value: false
+        front_camera_pose_13:
+          Value: false
+        front_camera_pose_14:
+          Value: false
+        front_camera_pose_15:
+          Value: false
+        front_camera_pose_16:
+          Value: false
+        front_camera_pose_17:
+          Value: false
+        front_camera_pose_18:
+          Value: false
+        front_camera_pose_19:
+          Value: false
         front_camera_pose_2:
+          Value: false
+        front_camera_pose_20:
+          Value: false
+        front_camera_pose_21:
+          Value: false
+        front_camera_pose_22:
+          Value: false
+        front_camera_pose_23:
+          Value: false
+        front_camera_pose_24:
           Value: false
         front_camera_pose_3:
           Value: false
@@ -1132,6 +1198,48 @@ Visualization Manager:
         front_camera_pose_8:
           Value: false
         front_camera_pose_9:
+          Value: false
+        front_camera_right_hand_0:
+          Value: false
+        front_camera_right_hand_1:
+          Value: false
+        front_camera_right_hand_10:
+          Value: false
+        front_camera_right_hand_11:
+          Value: false
+        front_camera_right_hand_12:
+          Value: false
+        front_camera_right_hand_13:
+          Value: false
+        front_camera_right_hand_14:
+          Value: false
+        front_camera_right_hand_15:
+          Value: false
+        front_camera_right_hand_16:
+          Value: false
+        front_camera_right_hand_17:
+          Value: false
+        front_camera_right_hand_18:
+          Value: false
+        front_camera_right_hand_19:
+          Value: false
+        front_camera_right_hand_2:
+          Value: false
+        front_camera_right_hand_20:
+          Value: false
+        front_camera_right_hand_3:
+          Value: false
+        front_camera_right_hand_4:
+          Value: false
+        front_camera_right_hand_5:
+          Value: false
+        front_camera_right_hand_6:
+          Value: false
+        front_camera_right_hand_7:
+          Value: false
+        front_camera_right_hand_8:
+          Value: false
+        front_camera_right_hand_9:
           Value: false
         horizontal_bar_link:
           Value: true
@@ -2211,6 +2319,48 @@ Visualization Manager:
                         {}
                       front_camera_face_99:
                         {}
+                      front_camera_left_hand_0:
+                        {}
+                      front_camera_left_hand_1:
+                        {}
+                      front_camera_left_hand_10:
+                        {}
+                      front_camera_left_hand_11:
+                        {}
+                      front_camera_left_hand_12:
+                        {}
+                      front_camera_left_hand_13:
+                        {}
+                      front_camera_left_hand_14:
+                        {}
+                      front_camera_left_hand_15:
+                        {}
+                      front_camera_left_hand_16:
+                        {}
+                      front_camera_left_hand_17:
+                        {}
+                      front_camera_left_hand_18:
+                        {}
+                      front_camera_left_hand_19:
+                        {}
+                      front_camera_left_hand_2:
+                        {}
+                      front_camera_left_hand_20:
+                        {}
+                      front_camera_left_hand_3:
+                        {}
+                      front_camera_left_hand_4:
+                        {}
+                      front_camera_left_hand_5:
+                        {}
+                      front_camera_left_hand_6:
+                        {}
+                      front_camera_left_hand_7:
+                        {}
+                      front_camera_left_hand_8:
+                        {}
+                      front_camera_left_hand_9:
+                        {}
                       front_camera_pose_0:
                         {}
                       front_camera_pose_1:
@@ -2221,7 +2371,31 @@ Visualization Manager:
                         {}
                       front_camera_pose_12:
                         {}
+                      front_camera_pose_13:
+                        {}
+                      front_camera_pose_14:
+                        {}
+                      front_camera_pose_15:
+                        {}
+                      front_camera_pose_16:
+                        {}
+                      front_camera_pose_17:
+                        {}
+                      front_camera_pose_18:
+                        {}
+                      front_camera_pose_19:
+                        {}
                       front_camera_pose_2:
+                        {}
+                      front_camera_pose_20:
+                        {}
+                      front_camera_pose_21:
+                        {}
+                      front_camera_pose_22:
+                        {}
+                      front_camera_pose_23:
+                        {}
+                      front_camera_pose_24:
                         {}
                       front_camera_pose_3:
                         {}
@@ -2236,6 +2410,48 @@ Visualization Manager:
                       front_camera_pose_8:
                         {}
                       front_camera_pose_9:
+                        {}
+                      front_camera_right_hand_0:
+                        {}
+                      front_camera_right_hand_1:
+                        {}
+                      front_camera_right_hand_10:
+                        {}
+                      front_camera_right_hand_11:
+                        {}
+                      front_camera_right_hand_12:
+                        {}
+                      front_camera_right_hand_13:
+                        {}
+                      front_camera_right_hand_14:
+                        {}
+                      front_camera_right_hand_15:
+                        {}
+                      front_camera_right_hand_16:
+                        {}
+                      front_camera_right_hand_17:
+                        {}
+                      front_camera_right_hand_18:
+                        {}
+                      front_camera_right_hand_19:
+                        {}
+                      front_camera_right_hand_2:
+                        {}
+                      front_camera_right_hand_20:
+                        {}
+                      front_camera_right_hand_3:
+                        {}
+                      front_camera_right_hand_4:
+                        {}
+                      front_camera_right_hand_5:
+                        {}
+                      front_camera_right_hand_6:
+                        {}
+                      front_camera_right_hand_7:
+                        {}
+                      front_camera_right_hand_8:
+                        {}
+                      front_camera_right_hand_9:
                         {}
                     front_camera_ir_frame:
                       front_camera_ir_optical_frame:
@@ -2441,7 +2657,7 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz_default_plugins/Orbit
-      Distance: 3.374479293823242
+      Distance: 3.2742538452148438
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.05999999865889549
         Stereo Focal Distance: 1
@@ -2456,18 +2672,18 @@ Visualization Manager:
       Invert Z Axis: false
       Name: Current View
       Near Clip Distance: 0.009999999776482582
-      Pitch: 0.3447977304458618
+      Pitch: 0.4297976791858673
       Target Frame: <Fixed Frame>
       Value: Orbit (rviz)
-      Yaw: 2.5304059982299805
+      Yaw: 2.490405321121216
     Saved: ~
 Window Geometry:
   Displays:
-    collapsed: false
+    collapsed: true
   Height: 1011
-  Hide Left Dock: false
+  Hide Left Dock: true
   Hide Right Dock: true
-  QMainWindow State: 000000ff00000000fd00000004000000000000015600000351fc0200000008fb0000001200530065006c0065006300740069006f006e00000001e10000009b0000005d00fffffffb0000001e0054006f006f006c002000500072006f007000650072007400690065007302000001ed000001df00000185000000a3fb000000120056006900650077007300200054006f006f02000001df000002110000018500000122fb000000200054006f006f006c002000500072006f0070006500720074006900650073003203000002880000011d000002210000017afb000000100044006900730070006c006100790073010000003f00000351000000cc00fffffffb0000002000730065006c0065006300740069006f006e00200062007500660066006500720200000138000000aa0000023a00000294fb00000014005700690064006500530074006500720065006f02000000e6000000d2000003ee0000030bfb0000000c004b0069006e0065006300740200000186000001060000030c00000261000000010000010f00000792fc0200000003fb0000001e0054006f006f006c002000500072006f00700065007200740069006500730100000041000000780000000000000000fb0000000a00560069006500770073000000003d00000792000000a900fffffffb0000001200530065006c0065006300740069006f006e010000025a000000b200000000000000000000000200000490000000a9fc0100000001fb0000000a00560069006500770073030000004e00000080000002e10000019700000003000003c00000003efc0100000002fb0000000800540069006d00650100000000000003c00000026f00fffffffb0000000800540069006d00650100000000000004500000000000000000000002640000035100000004000000040000000800000008fc0000000100000002000000010000000a0054006f006f006c00730100000000ffffffff0000000000000000
+  QMainWindow State: 000000ff00000000fd00000004000000000000015600000351fc0200000008fb0000001200530065006c0065006300740069006f006e00000001e10000009b0000005d00fffffffb0000001e0054006f006f006c002000500072006f007000650072007400690065007302000001ed000001df00000185000000a3fb000000120056006900650077007300200054006f006f02000001df000002110000018500000122fb000000200054006f006f006c002000500072006f0070006500720074006900650073003203000002880000011d000002210000017afb000000100044006900730070006c006100790073000000003f00000351000000cc00fffffffb0000002000730065006c0065006300740069006f006e00200062007500660066006500720200000138000000aa0000023a00000294fb00000014005700690064006500530074006500720065006f02000000e6000000d2000003ee0000030bfb0000000c004b0069006e0065006300740200000186000001060000030c00000261000000010000010f00000792fc0200000003fb0000001e0054006f006f006c002000500072006f00700065007200740069006500730100000041000000780000000000000000fb0000000a00560069006500770073000000003d00000792000000a900fffffffb0000001200530065006c0065006300740069006f006e010000025a000000b200000000000000000000000200000490000000a9fc0100000001fb0000000a00560069006500770073030000004e00000080000002e10000019700000003000003c00000003efc0100000002fb0000000800540069006d00650100000000000003c00000026f00fffffffb0000000800540069006d00650100000000000004500000000000000000000003c00000035100000004000000040000000800000008fc0000000100000002000000010000000a0054006f006f006c00730100000000ffffffff0000000000000000
   Selection:
     collapsed: false
   Time:
