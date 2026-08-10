@@ -37,6 +37,12 @@ def generate_launch_description():
         "cibo_3d.rviz",
     )
 
+    face_mesh_viz_config = os.path.join(
+        package_share,
+        "rviz",
+        "cibo_face_mesh.rviz",
+    )
+
     with open(urdf, "r") as f:
         robot_desc = f.read()
 
@@ -68,9 +74,24 @@ def generate_launch_description():
         ],
     )
 
+    rviz_face_mesh_node = Node(
+            package="rviz2",
+            executable="rviz2",
+            name="rviz2",
+            namespace=namespace,
+            output="screen",
+            arguments=["-d", face_mesh_viz_config],
+            parameters=[
+                {
+                    "use_sim_time": use_sim_time,
+                }
+            ],
+        )
+
     return LaunchDescription([
         namespace_cmd,
         use_sim_time_cmd,
         robot_state_publisher,
         rviz_node,
+        rviz_face_mesh_node,
     ])

@@ -7,12 +7,6 @@ Panels:
         - /DepthCloud1/Occlusion Compensation1
         - /DepthCloud2/Auto Size1
         - /TF1/Frames1
-        - /TF1/Tree1/map1
-        - /TF1/Tree1/map1/base_link1
-        - /TF1/Tree1/map1/base_link1/pedestal_link1
-        - /TF1/Tree1/map1/base_link1/pedestal_link1/vertical_bar_link1
-        - /TF1/Tree1/map1/base_link1/pedestal_link1/vertical_bar_link1/front_camera_link1
-        - /TF1/Tree1/map1/base_link1/pedestal_link1/vertical_bar_link1/front_camera_link1/front_camera_depth_frame1
       Splitter Ratio: 0.7470588088035583
     Tree Height: 703
   - Class: rviz_common/Selection
@@ -1203,9 +1197,9 @@ Visualization Manager:
           Value: false
         front_camera_pose_3:
           Value: false
-        front_camera_pose_30:
-          Value: false
         front_camera_pose_31:
+          Value: false
+        front_camera_pose_32:
           Value: false
         front_camera_pose_4:
           Value: false
@@ -1264,11 +1258,107 @@ Visualization Manager:
         horizontal_bar_link:
           Value: true
         map:
-          Value: true
+          Value: false
         pedestal_link:
           Value: true
+        top_camera_color_frame:
+          Value: false
+        top_camera_color_optical_frame:
+          Value: false
+        top_camera_depth_frame:
+          Value: false
+        top_camera_depth_optical_frame:
+          Value: false
+        top_camera_ir_frame:
+          Value: false
+        top_camera_ir_optical_frame:
+          Value: false
+        top_camera_left_hand_0:
+          Value: false
+        top_camera_left_hand_1:
+          Value: false
+        top_camera_left_hand_10:
+          Value: false
+        top_camera_left_hand_11:
+          Value: false
+        top_camera_left_hand_12:
+          Value: false
+        top_camera_left_hand_13:
+          Value: false
+        top_camera_left_hand_14:
+          Value: false
+        top_camera_left_hand_15:
+          Value: false
+        top_camera_left_hand_16:
+          Value: false
+        top_camera_left_hand_17:
+          Value: false
+        top_camera_left_hand_18:
+          Value: false
+        top_camera_left_hand_19:
+          Value: false
+        top_camera_left_hand_2:
+          Value: false
+        top_camera_left_hand_20:
+          Value: false
+        top_camera_left_hand_3:
+          Value: false
+        top_camera_left_hand_4:
+          Value: false
+        top_camera_left_hand_5:
+          Value: false
+        top_camera_left_hand_6:
+          Value: false
+        top_camera_left_hand_7:
+          Value: false
+        top_camera_left_hand_8:
+          Value: false
+        top_camera_left_hand_9:
+          Value: false
         top_camera_link:
           Value: true
+        top_camera_right_hand_0:
+          Value: false
+        top_camera_right_hand_1:
+          Value: false
+        top_camera_right_hand_10:
+          Value: false
+        top_camera_right_hand_11:
+          Value: false
+        top_camera_right_hand_12:
+          Value: false
+        top_camera_right_hand_13:
+          Value: false
+        top_camera_right_hand_14:
+          Value: false
+        top_camera_right_hand_15:
+          Value: false
+        top_camera_right_hand_16:
+          Value: false
+        top_camera_right_hand_17:
+          Value: false
+        top_camera_right_hand_18:
+          Value: false
+        top_camera_right_hand_19:
+          Value: false
+        top_camera_right_hand_2:
+          Value: false
+        top_camera_right_hand_20:
+          Value: false
+        top_camera_right_hand_3:
+          Value: false
+        top_camera_right_hand_4:
+          Value: false
+        top_camera_right_hand_5:
+          Value: false
+        top_camera_right_hand_6:
+          Value: false
+        top_camera_right_hand_7:
+          Value: false
+        top_camera_right_hand_8:
+          Value: false
+        top_camera_right_hand_9:
+          Value: false
         vertical_bar_link:
           Value: true
       Marker Scale: 1
@@ -2333,9 +2423,9 @@ Visualization Manager:
                         {}
                       front_camera_pose_3:
                         {}
-                      front_camera_pose_30:
-                        {}
                       front_camera_pose_31:
+                        {}
+                      front_camera_pose_32:
                         {}
                       front_camera_pose_4:
                         {}
@@ -2396,7 +2486,98 @@ Visualization Manager:
                         {}
                 horizontal_bar_link:
                   top_camera_link:
-                    {}
+                    top_camera_depth_frame:
+                      top_camera_color_frame:
+                        top_camera_color_optical_frame:
+                          {}
+                      top_camera_depth_optical_frame:
+                        top_camera_left_hand_0:
+                          {}
+                        top_camera_left_hand_1:
+                          {}
+                        top_camera_left_hand_10:
+                          {}
+                        top_camera_left_hand_11:
+                          {}
+                        top_camera_left_hand_12:
+                          {}
+                        top_camera_left_hand_13:
+                          {}
+                        top_camera_left_hand_14:
+                          {}
+                        top_camera_left_hand_15:
+                          {}
+                        top_camera_left_hand_16:
+                          {}
+                        top_camera_left_hand_17:
+                          {}
+                        top_camera_left_hand_18:
+                          {}
+                        top_camera_left_hand_19:
+                          {}
+                        top_camera_left_hand_2:
+                          {}
+                        top_camera_left_hand_20:
+                          {}
+                        top_camera_left_hand_3:
+                          {}
+                        top_camera_left_hand_4:
+                          {}
+                        top_camera_left_hand_5:
+                          {}
+                        top_camera_left_hand_6:
+                          {}
+                        top_camera_left_hand_7:
+                          {}
+                        top_camera_left_hand_8:
+                          {}
+                        top_camera_left_hand_9:
+                          {}
+                        top_camera_right_hand_0:
+                          {}
+                        top_camera_right_hand_1:
+                          {}
+                        top_camera_right_hand_10:
+                          {}
+                        top_camera_right_hand_11:
+                          {}
+                        top_camera_right_hand_12:
+                          {}
+                        top_camera_right_hand_13:
+                          {}
+                        top_camera_right_hand_14:
+                          {}
+                        top_camera_right_hand_15:
+                          {}
+                        top_camera_right_hand_16:
+                          {}
+                        top_camera_right_hand_17:
+                          {}
+                        top_camera_right_hand_18:
+                          {}
+                        top_camera_right_hand_19:
+                          {}
+                        top_camera_right_hand_2:
+                          {}
+                        top_camera_right_hand_20:
+                          {}
+                        top_camera_right_hand_3:
+                          {}
+                        top_camera_right_hand_4:
+                          {}
+                        top_camera_right_hand_5:
+                          {}
+                        top_camera_right_hand_6:
+                          {}
+                        top_camera_right_hand_7:
+                          {}
+                        top_camera_right_hand_8:
+                          {}
+                        top_camera_right_hand_9:
+                          {}
+                      top_camera_ir_frame:
+                        top_camera_ir_optical_frame:
+                          {}
       Update Interval: 0
       Value: true
     - Alpha: 1
@@ -2519,10 +2700,10 @@ Visualization Manager:
       Invert Z Axis: false
       Name: Current View
       Near Clip Distance: 0.009999999776482582
-      Pitch: 0.4347975552082062
+      Pitch: 0.20979775488376617
       Target Frame: <Fixed Frame>
       Value: Orbit (rviz)
-      Yaw: 2.5454063415527344
+      Yaw: 2.5354061126708984
     Saved: ~
 Window Geometry:
   Displays:
