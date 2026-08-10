@@ -49,7 +49,7 @@ class FrontCameraNode(Node):
         # marker params
         self.declare_parameter('publish_markers', True)
         self.declare_parameter('marker_topic', '/front_camera/landmark_markers')
-        self.declare_parameter('marker_scale', 0.015)     # sphere直径[m]
+        self.declare_parameter('marker_scale', 0.002)     # sphere直径[m]
         self.declare_parameter('marker_lifetime_sec', 0.2)
 
         # Read params
