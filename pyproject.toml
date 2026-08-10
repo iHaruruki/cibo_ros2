@@ -9,8 +9,9 @@ authors = [
 requires-python = ">=3.12"
 dependencies = [
     "numpy<2.0",
-    "mediapipe==1.0.0",
-    "protobuf==5.29.6",
+    "mediapipe==0.10.14",
+    "opencv-contrib-python==4.10.0.84",
+    "protobuf==4.25.5",
     "pyyaml>=6.0.3",
     "requests>=2.32.0",
     "ultralytics==8.4.6",
@@ -21,3 +22,5 @@ dependencies = [
 requires = ["uv_build>=0.11.27,<0.12.0"]
 build-backend = "uv_build"
 
+[tool.uv]
+package = false
