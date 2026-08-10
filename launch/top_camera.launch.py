@@ -11,7 +11,7 @@ from ament_index_python.packages import get_package_share_directory
 
 def generate_launch_description():
 
-    share_dir = get_package_share_directory("cibo_ros2")
+    share_dir = get_package_share_directory("cibos_ros2")
     subprocess.run(["uv", "sync", "--project", share_dir, "--no-editable"], check=True)
     venv_site_pkgs = glob.glob(
         os.path.join(share_dir, ".venv", "lib", "python*", "site-packages")
