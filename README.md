@@ -34,7 +34,8 @@ echo 'eval "$(uv generate-shell-completion bash)"' >> ~/.bashrc
 echo 'eval "$(uvx --generate-shell-completion bash)"' >> ~/.bashrc
 ```
 > [!TIP]
-> uvは、Pythonの高速なプロジェクトおよびパッケージ管理ツールです。Python環境の構築を劇的に簡素化し、従来は別々のツールで行っていた作業（pip、venv、poetry、pyenvなど）を単独で代替できるのが特徴です。
+> - uvは，超高速なPythonパッケージマネージャ  
+> - 仮想環境の作成・パッケージ管理・Pythonバージョン管理を一元化  
 > [Installing uv](https://docs.astral.sh/uv/getting-started/installation/)
 
 Install python packages
