@@ -52,7 +52,7 @@ source /opt/ros/$ROS_DISTRO/setup.bash
 Permission
 ```bash
 cd ~/ros2_ws/src/cibo_ros2
-sudo chmod +x scripts/check_image_compressed.py scripts/image_show.py scripts/dual_camera_sync.py scripts/top_camera.py scripts/top_camera_depth.py scripts/front_camera.py scripts/front_camera_depth.py
+sudo chmod +x scripts/*.py
 ```
 
 Build
@@ -95,8 +95,8 @@ Run mediapipe
 ros2 launch cibo_ros2 cibo.launch.py
 ```
 
-## ROI
-How to Select an ROI (Specify the area for skeleton estimation) / ROI選択方法（骨格推定を行う範囲を指定する）
+## Specify the area for skeleton estimation
+Specify the area for skeleton estimation / 骨格推定を行う範囲を指定する
 1. After launching the node, the OpenCV window will appear.  
     ノード起動後，OpenCVウィンドウが表示されます
 2. Drag the mouse to specify the area for skeleton estimation.  
@@ -197,4 +197,4 @@ LaTex
 - [LaTex - コマンド一覧](https://yokatoki.sakura.ne.jp/LaTeX/latex.html)
 - [数式の記述(markdown)](https://docs.github.com/ja/enterprise-cloud@latest/get-started/writing-on-github/working-with-advanced-formatting/writing-mathematical-expressions)
 
-## 📜 License
+<!-- ## 📜 License -->
