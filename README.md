@@ -64,6 +64,28 @@ source install/setup.bash
 
 ## 🎮 How to use
 ### Cibo 1
+
+#### Checking inter-device communication connections / デバイス間通信の接続確認
+Run publisher
+```bash
+# NUC30
+ros2 run demo_nodes_cpp talker
+```
+Run subscriber
+```bash
+# NUC36
+ros2 run demo_nodes_cpp listener
+```
+Result / 実行結果
+```bash
+$ ros2 run demo_nodes_cpp listener
+[INFO] [1765264820.324285384] [listener]: I heard: [Hello World: 1]
+[INFO] [1765264821.324176160] [listener]: I heard: [Hello World: 2]
+[INFO] [1765264822.324076114] [listener]: I heard: [Hello World: 3]
+[INFO] [1765264823.324220092] [listener]: I heard: [Hello World: 4]
+[INFO] [1765264824.324185182] [listener]: I heard: [Hello World: 5]
+```
+
 Run Front camera
 ```bash
 # NUC30
@@ -91,6 +113,27 @@ ros2 launch cibo_ros2 top_camera.launch.py
 ```
 
 ### Cibo 2
+#### Checking inter-device communication connections / デバイス間通信の接続確認
+Run publisher
+```bash
+# NUC37
+ros2 run demo_nodes_cpp talker
+```
+Run subscriber
+```bash
+# NUC32
+ros2 run demo_nodes_cpp listener
+```
+Result / 実行結果
+```bash
+$ ros2 run demo_nodes_cpp listener
+[INFO] [1765264820.324285384] [listener]: I heard: [Hello World: 1]
+[INFO] [1765264821.324176160] [listener]: I heard: [Hello World: 2]
+[INFO] [1765264822.324076114] [listener]: I heard: [Hello World: 3]
+[INFO] [1765264823.324220092] [listener]: I heard: [Hello World: 4]
+[INFO] [1765264824.324185182] [listener]: I heard: [Hello World: 5]
+```
+
 Run Front camera
 ```bash
 # NUC37
