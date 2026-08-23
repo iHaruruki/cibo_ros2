@@ -113,6 +113,14 @@ Run mediapipe
 ros2 launch cibo_ros2 top_camera.launch.py 
 ```
 
+## rosbag / カメラ画像を録画する
+```bash
+#NUC30
+cd ~/ros2_ws/rosbag
+ros2 bag record --topics /front_camera/color/camera_info /front_camera/color/image_raw/compressed /front_camera/depth/camera_info /front_camera/depth/image_raw/compressedDepth /tf /tf_static /cibo/joint_states /cibo/robot_description
+```
+
+
 ### Cibo 2
 #### Checking inter-device communication connections / デバイス間通信の接続確認
 Run publisher
@@ -140,12 +148,12 @@ Run Front camera
 # NUC37
 ros2 launch cibo_ros2 astra_stereo_u3.launch.py camera_name:=front_camera
 ```
-Run mediapipe & TF
+Run mediapipe & TF / 骨格推定
 ```bash
 #NUC37
 ros2 launch cibo_ros2 front_camera.launch.py
 ```
-Run rviz2
+Run rviz2 / Face Mesh を表示
 ```bash
 #NUC37
 ros2 launch cibo_ros2 rviz.launch.py
@@ -155,13 +163,13 @@ Run Top camera
 # NUC32
 ros2 launch cibo_ros2 astra_stereo_u3.launch.py camera_name:=top_camera
 ```
-Run mediapipe
+Run mediapipe / 骨格推定
 ```bash
 # NUC32
 ros2 launch cibo_ros2 top_camera.launch.py 
 ```
 
-## Specify the area for skeleton estimation
+## Specify the area for skeleton estimation / 骨格推定を行う範囲を指定する
 Specify the area for skeleton estimation / 骨格推定を行う範囲を指定する
 1. After launching the node, the OpenCV window will appear.  
     ノード起動後，OpenCVウィンドウが表示されます
@@ -169,6 +177,13 @@ Specify the area for skeleton estimation / 骨格推定を行う範囲を指定�
     マウスをドラッグして骨格推定を行う範囲を指定します
 3. A blue rectangle will appear while you drag, and a green rectangle will appear after you confirm.  
     ドラッグ中は青い矩形が表示され，確定後は緑の矩形で表示されます
+
+## rosbag / カメラ画像を録画する
+```bash
+#NUC37
+cd ~/ros2_ws/rosbag
+ros2 bag record --topics /front_camera/color/camera_info /front_camera/color/image_raw/compressed /front_camera/depth/camera_info /front_camera/depth/image_raw/compressedDepth /tf /tf_static /cibo/joint_states /cibo/robot_description
+```
 
 <!-- ### View the output image.(OpenCV Image Show) / 出力画像を見る
 ```bash
@@ -185,7 +200,7 @@ cd ~/ros2_ws/bag_files
 Recode only specific topics / 特定のトピックのみ記録する
 ```bash
 # ros2 bag record --topics <topic_name_1> <topic_name_2> <topic_name_3>
-ros2 bag record --topics /camera_01/color/image_raw /camera_01/depth/image_raw /camera_02/color/image_raw /camera_02/depth/image_raw
+ros2 bag record --topics /front_camera/color/camera_info /front_camera/color/image_raw/compressed /front_camera/depth/camera_info /front_camera/depth/image_raw/compressedDepth /tf /tf_static /cibo/joint_states /cibo/robot_description
 ```
 Recode all topic / すべてのトピックを記録する
 ```bash
