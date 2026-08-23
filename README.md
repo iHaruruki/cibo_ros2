@@ -112,8 +112,16 @@ Run mediapipe
 # NUC36
 ros2 launch cibo_ros2 top_camera.launch.py 
 ```
+#### Specify the area for skeleton estimation / 骨格推定を行う範囲を指定する
+Specify the area for skeleton estimation / 骨格推定を行う範囲を指定する
+1. After launching the node, the OpenCV window will appear.  
+    ノード起動後，OpenCVウィンドウが表示されます
+2. Drag the mouse to specify the area for skeleton estimation.  
+    マウスをドラッグして骨格推定を行う範囲を指定します
+3. A blue rectangle will appear while you drag, and a green rectangle will appear after you confirm.  
+    ドラッグ中は青い矩形が表示され，確定後は緑の矩形で表示されます
 
-## rosbag / カメラ画像を録画する
+#### rosbag / カメラ画像を録画する
 ```bash
 #NUC30
 cd ~/ros2_ws/rosbag
@@ -169,7 +177,7 @@ Run mediapipe / 骨格推定
 ros2 launch cibo_ros2 top_camera.launch.py 
 ```
 
-## Specify the area for skeleton estimation / 骨格推定を行う範囲を指定する
+#### Specify the area for skeleton estimation / 骨格推定を行う範囲を指定する
 Specify the area for skeleton estimation / 骨格推定を行う範囲を指定する
 1. After launching the node, the OpenCV window will appear.  
     ノード起動後，OpenCVウィンドウが表示されます
@@ -178,7 +186,7 @@ Specify the area for skeleton estimation / 骨格推定を行う範囲を指定�
 3. A blue rectangle will appear while you drag, and a green rectangle will appear after you confirm.  
     ドラッグ中は青い矩形が表示され，確定後は緑の矩形で表示されます
 
-## rosbag / カメラ画像を録画する
+#### rosbag / カメラ画像を録画する
 ```bash
 #NUC37
 cd ~/ros2_ws/rosbag
