@@ -85,6 +85,13 @@ Run Front camera
 # NUC37
 ros2 launch cibo_ros2 astra_stereo_u3.launch.py camera_name:=front_camera
 ```
+```bash
+#NUC37
+ros2 launch cibo_ros2 front_camera.launch.py
+```
+```bash
+ros2 launch cibo_ros2 rviz.launch.py
+```
 Run Top camera
 ```bash
 # NUC32
