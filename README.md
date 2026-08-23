@@ -70,6 +70,16 @@ Run Front camera
 # NUC30
 ros2 launch cibo_ros2 astra_stereo_u3.launch.py camera_name:=front_camera
 ```
+Run mediapipe & TF
+```bash
+#NUC30
+ros2 launch cibo_ros2 front_camera.launch.py
+```
+Run rviz2
+```bash
+#NUC30
+ros2 launch cibo_ros2 rviz.launch.py
+```
 Run Top camera
 ```bash
 # NUC36
@@ -77,7 +87,8 @@ ros2 launch cibo_ros2 astra_stereo_u3.launch.py camera_name:=top_camera
 ```
 Run mediapipe
 ```bash
-ros2 launch cibo_ros2 cibo.launch.py
+# NUC36
+ros2 launch cibo_ros2 top_camera.launch.py 
 ```
 
 ### Cibo 2
@@ -86,6 +97,16 @@ Run Front camera
 # NUC37
 ros2 launch cibo_ros2 astra_stereo_u3.launch.py camera_name:=front_camera
 ```
+Run mediapipe & TF
+```bash
+#NUC37
+ros2 launch cibo_ros2 front_camera.launch.py
+```
+Run rviz2
+```bash
+#NUC37
+ros2 launch cibo_ros2 rviz.launch.py
+```
 Run Top camera
 ```bash
 # NUC32
@@ -93,7 +114,8 @@ ros2 launch cibo_ros2 astra_stereo_u3.launch.py camera_name:=top_camera
 ```
 Run mediapipe
 ```bash
-ros2 launch cibo_ros2 cibo.launch.py
+# NUC32
+ros2 launch cibo_ros2 top_camera.launch.py 
 ```
 
 ## Specify the area for skeleton estimation
