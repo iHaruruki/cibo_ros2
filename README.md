@@ -127,6 +127,12 @@ Specify the area for skeleton estimation / 骨格推定を行う範囲を指定�
 cd ~/ros2_ws/rosbag
 ros2 bag record --topics /front_camera/color/camera_info /front_camera/color/image_raw/compressed /front_camera/depth/camera_info /front_camera/depth/image_raw/compressedDepth /top_camera/color/camera_info /top_camera/color/image_raw/compressed /top_camera/depth/camera_info /top_camera/depth/image_raw/compressedDepth /tf /tf_static /cibo/joint_states /cibo/robot_description
 ```
+録画した内容を確認する
+```bash
+#NUC36
+cd ~/ros2_ws/rosbag
+ros2 bag play <Pathを入力する>
+```
 
 ### Cibo 2
 #### Checking inter-device communication connections / デバイス間通信の接続確認
