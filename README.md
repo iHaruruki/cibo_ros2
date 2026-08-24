@@ -194,7 +194,7 @@ ros2 bag record --topics /front_camera/color/camera_info /front_camera/color/ima
 録画した内容を確認する
 ```bash
 cd ~/ros2_ws/rosbag
-ros2 bag play /
+ros2 bag play <Pathを入力する>
 ```
 
 <!-- ### View the output image.(OpenCV Image Show) / 出力画像を見る
