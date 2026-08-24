@@ -69,12 +69,12 @@ source install/setup.bash
 #### Checking inter-device communication connections / デバイス間通信の接続確認
 Run publisher
 ```bash
-# NUC30
+# NUC36
 ros2 run demo_nodes_cpp talker
 ```
 Run subscriber
 ```bash
-# NUC36
+# NUC30
 ros2 run demo_nodes_cpp listener
 ```
 Result / 実行結果
@@ -89,27 +89,27 @@ $ ros2 run demo_nodes_cpp listener
 
 Run Front camera
 ```bash
-# NUC30
+# NUC36
 ros2 launch cibo_ros2 astra_stereo_u3.launch.py camera_name:=front_camera
 ```
 Run mediapipe & TF
 ```bash
-#NUC30
+#NUC36
 ros2 launch cibo_ros2 front_camera.launch.py
 ```
 Run rviz2
 ```bash
-#NUC30
+#NUC36
 ros2 launch cibo_ros2 rviz.launch.py
 ```
 Run Top camera
 ```bash
-# NUC36
+# NUC30
 ros2 launch cibo_ros2 astra_stereo_u3.launch.py camera_name:=top_camera
 ```
 Run mediapipe
 ```bash
-# NUC36
+# NUC30
 ros2 launch cibo_ros2 top_camera.launch.py 
 ```
 #### Specify the area for skeleton estimation / 骨格推定を行う範囲を指定する
@@ -123,7 +123,7 @@ Specify the area for skeleton estimation / 骨格推定を行う範囲を指定�
 
 #### rosbag / カメラ画像を録画する
 ```bash
-#NUC30
+#NUC36
 cd ~/ros2_ws/rosbag
 ros2 bag record --topics /front_camera/color/camera_info /front_camera/color/image_raw/compressed /front_camera/depth/camera_info /front_camera/depth/image_raw/compressedDepth /top_camera/color/camera_info /top_camera/color/image_raw/compressed /top_camera/depth/camera_info /top_camera/depth/image_raw/compressedDepth /tf /tf_static /cibo/joint_states /cibo/robot_description
 ```
