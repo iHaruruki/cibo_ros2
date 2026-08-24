@@ -191,13 +191,18 @@ Specify the area for skeleton estimation / 骨格推定を行う範囲を指定�
 cd ~/ros2_ws/rosbag
 ros2 bag record --topics /front_camera/color/camera_info /front_camera/color/image_raw/compressed /front_camera/depth/camera_info /front_camera/depth/image_raw/compressedDepth /top_camera/color/camera_info /top_camera/color/image_raw/compressed /top_camera/depth/camera_info /top_camera/depth/image_raw/compressedDepth /tf /tf_static /cibo/joint_states /cibo/robot_description
 ```
+録画した内容を確認する
+```bash
+cd ~/ros2_ws/rosbag
+ros2 bag play /
+```
 
 <!-- ### View the output image.(OpenCV Image Show) / 出力画像を見る
 ```bash
 ros2 run cibo image_show_node
 ``` -->
 
-### [rosbag](https://docs.ros.org/en/humble/Tutorials/Beginner-CLI-Tools/Recording-And-Playing-Back-Data/Recording-And-Playing-Back-Data.html)
+<!-- ### [rosbag](https://docs.ros.org/en/humble/Tutorials/Beginner-CLI-Tools/Recording-And-Playing-Back-Data/Recording-And-Playing-Back-Data.html)
 If you want to record images, use rosbg. / 画像を録画したい場合は，rosbagを利用
 ```bash
 # make bag_files directory
@@ -216,7 +221,7 @@ ros2 bag record -a
 ```
 > [!WARNING]
 > Due to the large data size, be mindful of your available storage space!  
-> データサイズが大きいため，ストレージの空き容量に注意！
+> データサイズが大きいため，ストレージの空き容量に注意！ -->
 
 ## 👤 Authors
 - **[iHaruruki](https://github.com/iHaruruki)** — Main author & maintainer
