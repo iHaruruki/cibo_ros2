@@ -102,6 +102,18 @@ Run rviz2
 #NUC36
 ros2 launch cibo_ros2 rviz.launch.py
 ```
+Run Food & Bite tracking
+```bash
+#NUC36
+source ~/ros2_ws/src/cibo_ros2/.venv/bin/activate
+ros2 run cibo_ros2 food_detection_and_access_tracking.py
+```
+Run chewing counter
+```bash
+#NUC36
+source ~/ros2_ws/src/cibo_ros2/.venv/bin/activate
+ros2 run cibo_ros2 htm_chewing.py
+```
 Run Top camera
 ```bash
 # NUC30
@@ -171,6 +183,18 @@ Run rviz2 / Face Mesh を表示
 #NUC37
 ros2 launch cibo_ros2 rviz.launch.py
 ```
+Run Food & Bite tracking
+```bash
+#NUC37
+source ~/ros2_ws/src/cibo_ros2/.venv/bin/activate
+ros2 run cibo_ros2 food_detection_and_access_tracking.py
+```
+Run chewing counter
+```bash
+#NUC37
+source ~/ros2_ws/src/cibo_ros2/.venv/bin/activate
+ros2 run cibo_ros2 htm_chewing.py
+```
 Run Top camera
 ```bash
 # NUC32
@@ -201,6 +225,10 @@ ros2 bag record --topics /front_camera/color/camera_info /front_camera/color/ima
 ```bash
 cd ~/ros2_ws/rosbag
 ros2 bag play <Pathを入力する>
+```
+Decompress node / 圧縮画像を解答する
+```bash
+ros2 launch cibo_ros2 decompress_all_camera.launch.py
 ```
 
 <!-- ### View the output image.(OpenCV Image Show) / 出力画像を見る
