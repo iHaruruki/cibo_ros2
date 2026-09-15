@@ -226,7 +226,7 @@ ros2 bag record --topics /front_camera/color/camera_info /front_camera/color/ima
 cd ~/ros2_ws/rosbag
 ros2 bag play <Pathを入力する>
 ```
-Decompress node / 圧縮画像を解答する
+Decompress node / 圧縮画像を回答する
 ```bash
 ros2 launch cibo_ros2 decompress_all_camera.launch.py
 ```
