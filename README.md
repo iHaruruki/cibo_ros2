@@ -254,7 +254,7 @@ ros2 bag play <Pathを入力する>
 ```bash
 ros2 bag play rosbag2_2026_09_15-xx_xx_xx/
 ```
-2. Decompress node / 圧縮画像を解凍する
+2. 圧縮画像を解凍する
 ```bash
 ros2 launch cibo_ros2 decompress_all_camera.launch.py
 ```
@@ -262,6 +262,8 @@ ros2 launch cibo_ros2 decompress_all_camera.launch.py
 ```bash
 ros2 launch cibo_ros2 rviz.launch.py
 ```
+4. 骨格推定 & 咀嚼カウンタ & 摂食物推定
+
 - Run mediapipe & TF
 ```bash
 ros2 launch cibo_ros2 front_camera.launch.py
