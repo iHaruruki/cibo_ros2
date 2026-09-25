@@ -258,24 +258,24 @@ ros2 bag play rosbag2_2026_09_15-xx_xx_xx/
 ```bash
 ros2 launch cibo_ros2 decompress_all_camera.launch.py
 ```
-3. Run mediapipe & TF / 骨格推定
-```bash
-ros2 launch cibo_ros2 front_camera.launch.py
-```
-4. Run rviz2
+3. Run rviz2
 ```bash
 ros2 launch cibo_ros2 rviz.launch.py
 ```
-5. Run mediapipe
+- Run mediapipe & TF
+```bash
+ros2 launch cibo_ros2 front_camera.launch.py
+```
+- Run mediapipe
 ```bash
 ros2 launch cibo_ros2 top_camera.launch.py 
 ```
-6. Run Food & Bite tracking
+- Run Food & Bite tracking
 ```bash
 source ~/ros2_ws/src/cibo_ros2/.venv/bin/activate
 ros2 run cibo_ros2 food_detection_and_access_tracking.py
 ```
-7. Run chewing counter
+- Run chewing counter
 ```bash
 source ~/ros2_ws/src/cibo_ros2/.venv/bin/activate
 ros2 run cibo_ros2 htm_chewing.py
