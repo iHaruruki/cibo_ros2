@@ -124,7 +124,6 @@ Run mediapipe
 # NUC30
 ros2 launch cibo_ros2 top_camera.launch.py 
 ```
-#### Specify the area for skeleton estimation / 骨格推定を行う範囲を指定する
 Specify the area for skeleton estimation / 骨格推定を行う範囲を指定する
 1. After launching the node, the OpenCV window will appear.  
     ノード起動後，OpenCVウィンドウが表示されます
@@ -133,7 +132,7 @@ Specify the area for skeleton estimation / 骨格推定を行う範囲を指定�
 3. A blue rectangle will appear while you drag, and a green rectangle will appear after you confirm.  
     ドラッグ中は青い矩形が表示され，確定後は緑の矩形で表示されます
 
-#### rosbag / カメラ画像を録画する
+rosbag2を用いて，カメラ画像を録画する
 ```bash
 #NUC36
 cd ~/ros2_ws/rosbag
@@ -216,7 +215,6 @@ ros2 launch cibo_ros2 top_camera.launch.py
 ros2 launch cibo_ros2 top_camera.launch.py
 ```
 
-#### Specify the area for skeleton estimation / 骨格推定を行う範囲を指定する
 Specify the area for skeleton estimation / 骨格推定を行う範囲を指定する
 1. After launching the node, the OpenCV window will appear.  
     ノード起動後，OpenCVウィンドウが表示されます
@@ -225,7 +223,7 @@ Specify the area for skeleton estimation / 骨格推定を行う範囲を指定�
 3. A blue rectangle will appear while you drag, and a green rectangle will appear after you confirm.  
     ドラッグ中は青い矩形が表示され，確定後は緑の矩形で表示されます
 
-#### rosbag / カメラ画像を録画する
+rosbag2を用いて，カメラ画像を録画する
 ```bash
 #NUC37
 cd ~/ros2_ws/rosbag
@@ -236,7 +234,9 @@ ros2 bag record --topics /front_camera/color/camera_info /front_camera/color/ima
 cd ~/ros2_ws/rosbag
 ros2 bag play <Pathを入力する>
 ```
-Decompress node / 圧縮画像を解答する
+
+## rosbag2
+Decompress node / 圧縮画像を解凍する
 ```bash
 ros2 launch cibo_ros2 decompress_all_camera.launch.py
 ```
@@ -333,5 +333,3 @@ LaTex
 - [はじめてのLaTex: 数式の入力と環境構築](https://guides.lib.kyushu-u.ac.jp/LaTeX-LectureNote/equations)
 - [LaTex - コマンド一覧](https://yokatoki.sakura.ne.jp/LaTeX/latex.html)
 - [数式の記述(markdown)](https://docs.github.com/ja/enterprise-cloud@latest/get-started/writing-on-github/working-with-advanced-formatting/writing-mathematical-expressions)
-
-<!-- ## 📜 License -->
