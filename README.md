@@ -270,6 +270,16 @@ ros2 launch cibo_ros2 rviz.launch.py
 ```bash
 ros2 launch cibo_ros2 top_camera.launch.py 
 ```
+6. Run Food & Bite tracking
+```bash
+source ~/ros2_ws/src/cibo_ros2/.venv/bin/activate
+ros2 run cibo_ros2 food_detection_and_access_tracking.py
+```
+7. Run chewing counter
+```bash
+source ~/ros2_ws/src/cibo_ros2/.venv/bin/activate
+ros2 run cibo_ros2 htm_chewing.py
+```
 
 </details>
 
