@@ -28,7 +28,7 @@ install(
   DESTINATION lib/${PROJECT_NAME}
 )
 
-install(DIRECTORY launch rviz urdf
+install(DIRECTORY launch rviz urdf models
   DESTINATION share/${PROJECT_NAME}
 )
 

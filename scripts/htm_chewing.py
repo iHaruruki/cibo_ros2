@@ -2,7 +2,7 @@
 
 import time
 from collections import deque
-from typing import Optional, Tuple, List
+from typing import Optional
 
 import cv2
 import mediapipe as mp
@@ -16,23 +16,32 @@ from std_msgs.msg import Int32, String, Bool, Float32
 from cv_bridge import CvBridge
 
 
-# =========================
-# 1) CONFIGURATION
-# =========================
-PEAK_THRESHOLD = 0.002
-CHEWING_WINDOW = 30
+# 1. CONFIGURATION & SENSITIVITY (Updated thresholds)
 
-HTM_START_THRESH = 0.30
-HTM_END_THRESH = 0.40
-VALIDATION_TIME = 3.0
+PEAK_THRESHOLD = 0.002     # Lower = More sensitive to small jaw movements
+CHEWING_WINDOW = 30         # Frames to smooth the motion signal (removes jitter)
 
-# Face landmarks (same intent as original)
-FACIAL_LANDMARKS = list(range(0, 18)) + list(range(61, 88))
-REFERENCE_LANDMARKS = [1]  # Nose tip-ish anchor in face mesh topology
+# Hand-to-Mouth thresholds (normalized distance 0.0-1.0)
+HTM_START_THRESH = 0.30      # Hand must get this close to trigger "INTAKE"
+HTM_END_THRESH = 0.40        # Hand must move this far to be considered "RETREATED"
+VALIDATION_TIME = 3.0        # Seconds to wait for chewing after hand leaves face
+
+# Landmark indices
+FACIAL_LANDMARKS = list(range(0, 18)) + list(range(61, 88))  # Jaw & Lips
+REFERENCE_LANDMARKS = [1]    # Nose Tip anchor
+LEFT_WRIST = 15
+RIGHT_WRIST = 16
 MOUTH_CENTER = 13
 
 
 class BiteCounter:
+    """
+    Extended logic:
+    - total_bites: number of confirmed bites
+    - current_chew_count: number of chewing peaks detected in current bite
+    - last_bite_chews: chew count of the previous completed bite
+    - Peak detection uses a simple 3-point pattern (rising then falling above threshold).
+    """
     def __init__(self):
         self.state = "IDLE"
         self.total_bites = 0
@@ -40,36 +49,43 @@ class BiteCounter:
         self.last_bite_chews = 0
         self.last_intake_time = 0.0
 
+        # For peak detection
         self.prev_val = 0.0
         self.prev_prev_val = 0.0
 
     def update(self, hand_dist: float, is_chewing: bool, current_motion_val: float):
         curr_time = time.time()
 
+        # A. Peak detection (only when in active eating states)
         if self.state in ["CHEWING", "VALIDATION"] and is_chewing:
+            # Peak pattern: previous > previous_previous AND previous > current AND previous above threshold
             if (self.prev_prev_val < self.prev_val) and (self.prev_val > current_motion_val) and (self.prev_val > PEAK_THRESHOLD):
                 self.current_chew_count += 1
 
+        # Update motion value history
         self.prev_prev_val = self.prev_val
         self.prev_val = current_motion_val
 
+        # B. State machine transitions
         if self.state == "IDLE":
             if hand_dist < HTM_START_THRESH:
                 self.state = "INTAKE"
                 self.last_intake_time = curr_time
-                self.current_chew_count = 0
+                self.current_chew_count = 0  # Prepare for potential new bite
 
         elif self.state == "INTAKE":
             if hand_dist > HTM_END_THRESH:
                 self.state = "VALIDATION"
                 self.last_intake_time = curr_time
             elif is_chewing:
+                # Chewing started while hand still near mouth
                 self._trigger_bite()
 
         elif self.state == "VALIDATION":
             if is_chewing:
                 self._trigger_bite()
             elif (curr_time - self.last_intake_time) > VALIDATION_TIME:
+                # False alarm (scratch etc.)
                 self.state = "IDLE"
                 self.current_chew_count = 0
             elif hand_dist < HTM_START_THRESH:
@@ -77,6 +93,7 @@ class BiteCounter:
 
         elif self.state == "CHEWING":
             if not is_chewing and hand_dist > HTM_END_THRESH:
+                # Chewing ended and hand is away -> finalize bite
                 self.last_bite_chews = self.current_chew_count
                 self.current_chew_count = 0
                 self.state = "IDLE"
@@ -86,8 +103,12 @@ class BiteCounter:
     def _trigger_bite(self):
         if self.state != "CHEWING":
             self.total_bites += 1
-            self.current_chew_count = 0
+            self.current_chew_count = 0  # Start counting fresh
             self.state = "CHEWING"
+
+
+def get_distance(p1, p2) -> float:
+    return float(np.sqrt((p1.x - p2.x) ** 2 + (p1.y - p2.y) ** 2))
 
 
 def get_relative_motion(prev_coords: np.ndarray, curr_coords: np.ndarray) -> float:
@@ -109,19 +130,15 @@ def draw_text_with_outline(img, text, org, font, font_scale, color, thickness, o
 
 class EatingEpisodeNode(Node):
     def __init__(self):
-        super().__init__("eating_episode_detector_tasks")
+        super().__init__("eating_episode_detector")
 
-        # ROS params
+        # Parameters
         self.declare_parameter("color_topic", "/front_camera/color/image_raw")
         self.declare_parameter("color_info_topic", "/front_camera/color/camera_info")
         self.declare_parameter("depth_topic", "/front_camera/depth/image_raw")
         self.declare_parameter("depth_info_topic", "/front_camera/depth/camera_info")
         self.declare_parameter("show_window", True)
-        self.declare_parameter("annotated_image_topic", "/annotated_image")
-
-        # New model-asset params (MediaPipe Tasks)
-        self.declare_parameter("face_model_path", "models/face_landmarker.task")
-        self.declare_parameter("hand_model_path", "models/hand_landmarker.task")
+        self.declare_parameter("annotated_image_topic", "~/annotated_image")
 
         self.color_topic = self.get_parameter("color_topic").value
         self.color_info_topic = self.get_parameter("color_info_topic").value
@@ -129,41 +146,16 @@ class EatingEpisodeNode(Node):
         self.depth_info_topic = self.get_parameter("depth_info_topic").value
         self.show_window = self.get_parameter("show_window").value
         self.annotated_image_topic = self.get_parameter("annotated_image_topic").value
-        self.face_model_path = self.get_parameter("face_model_path").value
-        self.hand_model_path = self.get_parameter("hand_model_path").value
 
         self.bridge = CvBridge()
 
-        # ----- MediaPipe Tasks setup -----
-        from mediapipe.tasks import python as mp_python
-        from mediapipe.tasks.python import vision as mp_vision
-
-        self.mp_vision = mp_vision
-        self._ts_ms = 0
-
-        face_base = mp_python.BaseOptions(model_asset_path=self.face_model_path)
-        face_opts = mp_vision.FaceLandmarkerOptions(
-            base_options=face_base,
-            running_mode=mp_vision.RunningMode.VIDEO,
-            num_faces=1,
-            min_face_detection_confidence=0.5,
-            min_face_presence_confidence=0.5,
+        # MediaPipe Holistic
+        self.mp_holistic = mp.solutions.holistic
+        self.holistic = self.mp_holistic.Holistic(
+            min_detection_confidence=0.5,
             min_tracking_confidence=0.5,
-            output_face_blendshapes=False,
-            output_facial_transformation_matrixes=False,
+            refine_face_landmarks=True
         )
-        self.face_landmarker = mp_vision.FaceLandmarker.create_from_options(face_opts)
-
-        hand_base = mp_python.BaseOptions(model_asset_path=self.hand_model_path)
-        hand_opts = mp_vision.HandLandmarkerOptions(
-            base_options=hand_base,
-            running_mode=mp_vision.RunningMode.VIDEO,
-            num_hands=2,
-            min_hand_detection_confidence=0.5,
-            min_hand_presence_confidence=0.5,
-            min_tracking_confidence=0.5,
-        )
-        self.hand_landmarker = mp_vision.HandLandmarker.create_from_options(hand_opts)
 
         # State
         self.bite_counter = BiteCounter()
@@ -187,7 +179,7 @@ class EatingEpisodeNode(Node):
         self.sub_depth = self.create_subscription(Image, self.depth_topic, self.depth_image_cb, 10)
         self.sub_depth_info = self.create_subscription(CameraInfo, self.depth_info_topic, self.depth_info_cb, 10)
 
-        self.get_logger().info("EatingEpisodeNode (MediaPipe Tasks API) initialized.")
+        self.get_logger().info("EatingEpisodeNode (chew peak version) initialized.")
 
     def color_info_cb(self, _: CameraInfo):
         pass
@@ -198,46 +190,6 @@ class EatingEpisodeNode(Node):
     def depth_info_cb(self, _: CameraInfo):
         pass
 
-    def _next_timestamp_ms(self) -> int:
-        now_ms = int(time.time() * 1000)
-        if now_ms <= self._ts_ms:
-            now_ms = self._ts_ms + 1
-        self._ts_ms = now_ms
-        return self._ts_ms
-
-    @staticmethod
-    def _norm_dist(p1, p2) -> float:
-        return float(np.sqrt((p1.x - p2.x) ** 2 + (p1.y - p2.y) ** 2))
-
-    def _extract_face_coords(self, face_result) -> Optional[np.ndarray]:
-        if not face_result.face_landmarks:
-            return None
-        # first face only
-        lm = face_result.face_landmarks[0]
-        coords = np.array([[p.x, p.y] for p in lm], dtype=np.float32)
-        return coords
-
-    def _extract_mouth_point(self, face_result):
-        if not face_result.face_landmarks:
-            return None
-        lm = face_result.face_landmarks[0]
-        if len(lm) <= MOUTH_CENTER:
-            return None
-        return lm[MOUTH_CENTER]
-
-    def _closest_hand_to_point(self, hand_result, point) -> float:
-        if point is None or not hand_result.hand_landmarks:
-            return 1.0
-
-        # Wrist index in hand landmark topology = 0
-        closest = 1.0
-        for hand_lms in hand_result.hand_landmarks:
-            wrist = hand_lms[0]
-            d = self._norm_dist(wrist, point)
-            if d < closest:
-                closest = d
-        return closest
-
     def color_image_cb(self, msg: Image):
         try:
             cv_image = self.bridge.imgmsg_to_cv2(msg, desired_encoding="bgr8")
@@ -246,37 +198,42 @@ class EatingEpisodeNode(Node):
             return
 
         h, w = cv_image.shape[:2]
-        rgb = cv2.cvtColor(cv_image, cv2.COLOR_BGR2RGB)
+        cv_image.flags.writeable = False
+        frame_rgb = cv2.cvtColor(cv_image, cv2.COLOR_BGR2RGB)
+        results = self.holistic.process(frame_rgb)
+        cv_image.flags.writeable = True
 
-        mp_image = mp.Image(image_format=mp.ImageFormat.SRGB, data=rgb)
-        ts_ms = self._next_timestamp_ms()
-
-        # Tasks inference
-        face_result = self.face_landmarker.detect_for_video(mp_image, ts_ms)
-        hand_result = self.hand_landmarker.detect_for_video(mp_image, ts_ms)
-
+        # Defaults
         is_chewing = False
         closest_hand_dist = 1.0
         avg_motion = 0.0
 
-        # Face motion
-        face_coords = self._extract_face_coords(face_result)
-        if face_coords is not None:
+        # Face motion & chewing detection
+        if results.face_landmarks:
+            fm = results.face_landmarks
+            coords = np.array([[p.x, p.y] for p in fm.landmark], dtype=np.float32)
+
             if self.prev_landmarks is not None:
-                motion_mag = get_relative_motion(self.prev_landmarks, face_coords)
+                motion_mag = get_relative_motion(self.prev_landmarks, coords)
                 self.motion_queue.append(motion_mag)
                 self.motion_history.append(motion_mag)
                 avg_motion = float(np.mean(self.motion_queue))
                 is_chewing = avg_motion > PEAK_THRESHOLD
-            self.prev_landmarks = face_coords.copy()
+
+            self.prev_landmarks = coords.copy()
         else:
             is_chewing = False
 
-        # Hand-to-mouth
-        mouth_point = self._extract_mouth_point(face_result)
-        closest_hand_dist = self._closest_hand_to_point(hand_result, mouth_point)
+        # Hand distance
+        if results.pose_landmarks and results.face_landmarks:
+            pose_lm = results.pose_landmarks.landmark
+            face_lm = results.face_landmarks.landmark
+            mouth_point = face_lm[MOUTH_CENTER]
+            left_dist = get_distance(pose_lm[LEFT_WRIST], mouth_point)
+            right_dist = get_distance(pose_lm[RIGHT_WRIST], mouth_point)
+            closest_hand_dist = min(left_dist, right_dist)
 
-        # Update state machine
+        # Update bite counter logic (passes avg_motion for peak detection)
         total_bites, current_chews, last_chews, state = self.bite_counter.update(
             closest_hand_dist, is_chewing, avg_motion
         )
@@ -289,7 +246,7 @@ class EatingEpisodeNode(Node):
             state, is_chewing, avg_motion, closest_hand_dist
         )
 
-        # Publish
+        # Publish results
         self.publish_metrics(
             total_bites=total_bites,
             current_chews=current_chews,
@@ -303,12 +260,13 @@ class EatingEpisodeNode(Node):
         )
 
         if self.show_window:
-            cv2.imshow("Eating Episode Detector (Tasks API)", overlay)
+            cv2.imshow("Eating Episode Detector (Chew Peaks)", overlay)
             cv2.waitKey(1)
 
     def draw_overlay(self, frame, w, h,
                      total_bites, current_chews, last_chews,
                      state, is_chewing, avg_motion, hand_dist):
+        # Colors
         COLOR_MAIN = (0, 255, 0)
         COLOR_SECONDARY = (255, 255, 0)
         COLOR_ALERT = (0, 165, 255)
@@ -334,6 +292,7 @@ class EatingEpisodeNode(Node):
         draw_text_with_outline(frame, f"Hand Dist: {hand_dist:.2f}", (10, 130),
                                cv2.FONT_HERSHEY_SIMPLEX, 0.5, COLOR_MAIN, 1)
 
+        # Graph bottom-right
         graph_h, graph_w = 100, 320
         graph_x_start = w - graph_w - 10
         graph_y_start = h - graph_h - 10
@@ -377,13 +336,8 @@ class EatingEpisodeNode(Node):
 
     def destroy_node(self):
         try:
-            if self.face_landmarker:
-                self.face_landmarker.close()
-        except Exception:
-            pass
-        try:
-            if self.hand_landmarker:
-                self.hand_landmarker.close()
+            if self.holistic:
+                self.holistic.close()
         except Exception:
             pass
         if self.show_window:

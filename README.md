@@ -34,7 +34,8 @@ echo 'eval "$(uv generate-shell-completion bash)"' >> ~/.bashrc
 echo 'eval "$(uvx --generate-shell-completion bash)"' >> ~/.bashrc
 ```
 > [!TIP]
-> uvは、Pythonの高速なプロジェクトおよびパッケージ管理ツールです。Python環境の構築を劇的に簡素化し、従来は別々のツールで行っていた作業（pip、venv、poetry、pyenvなど）を単独で代替できるのが特徴です。
+> - uvは，超高速なPythonパッケージマネージャ  
+> - 仮想環境の作成・パッケージ管理・Pythonバージョン管理を一元化  
 > [Installing uv](https://docs.astral.sh/uv/getting-started/installation/)
 
 Install python packages
@@ -64,26 +65,135 @@ source install/setup.bash
 
 ## 🎮 How to use
 ### Cibo 1
-Run Front camera
+
+#### Checking inter-device communication connections / デバイス間通信の接続確認
+Run publisher
+```bash
+# NUC36
+ros2 run demo_nodes_cpp talker
+```
+Run subscriber
 ```bash
 # NUC30
+ros2 run demo_nodes_cpp listener
+```
+Result / 実行結果
+```bash
+$ ros2 run demo_nodes_cpp listener
+[INFO] [1765264820.324285384] [listener]: I heard: [Hello World: 1]
+[INFO] [1765264821.324176160] [listener]: I heard: [Hello World: 2]
+[INFO] [1765264822.324076114] [listener]: I heard: [Hello World: 3]
+[INFO] [1765264823.324220092] [listener]: I heard: [Hello World: 4]
+[INFO] [1765264824.324185182] [listener]: I heard: [Hello World: 5]
+```
+
+Run Front camera
+```bash
+# NUC36
 ros2 launch cibo_ros2 astra_stereo_u3.launch.py camera_name:=front_camera
+```
+Run mediapipe & TF
+```bash
+#NUC36
+ros2 launch cibo_ros2 front_camera.launch.py
+```
+Run rviz2
+```bash
+#NUC36
+ros2 launch cibo_ros2 rviz.launch.py
+```
+Run Food & Bite tracking
+```bash
+#NUC36
+source ~/ros2_ws/src/cibo_ros2/.venv/bin/activate
+ros2 run cibo_ros2 food_detection_and_access_tracking.py
+```
+Run chewing counter
+```bash
+#NUC36
+source ~/ros2_ws/src/cibo_ros2/.venv/bin/activate
+ros2 run cibo_ros2 htm_chewing.py
 ```
 Run Top camera
 ```bash
-# NUC36
+# NUC30
 ros2 launch cibo_ros2 astra_stereo_u3.launch.py camera_name:=top_camera
 ```
 Run mediapipe
 ```bash
-ros2 launch cibo_ros2 cibo.launch.py
+# NUC30
+ros2 launch cibo_ros2 top_camera.launch.py 
+```
+#### Specify the area for skeleton estimation / 骨格推定を行う範囲を指定する
+Specify the area for skeleton estimation / 骨格推定を行う範囲を指定する
+1. After launching the node, the OpenCV window will appear.  
+    ノード起動後，OpenCVウィンドウが表示されます
+2. Drag the mouse to specify the area for skeleton estimation.  
+    マウスをドラッグして骨格推定を行う範囲を指定します
+3. A blue rectangle will appear while you drag, and a green rectangle will appear after you confirm.  
+    ドラッグ中は青い矩形が表示され，確定後は緑の矩形で表示されます
+
+#### rosbag / カメラ画像を録画する
+```bash
+#NUC36
+cd ~/ros2_ws/rosbag
+ros2 bag record --topics /front_camera/color/camera_info /front_camera/color/image_raw/compressed /front_camera/depth/camera_info /front_camera/depth/image_raw/compressedDepth /top_camera/color/camera_info /top_camera/color/image_raw/compressed /top_camera/depth/camera_info /top_camera/depth/image_raw/compressedDepth /tf /tf_static /cibo/joint_states /cibo/robot_description
+```
+録画した内容を確認する
+```bash
+#NUC36
+cd ~/ros2_ws/rosbag
+ros2 bag play <Pathを入力する>
 ```
 
 ### Cibo 2
+#### Checking inter-device communication connections / デバイス間通信の接続確認
+Run publisher
+```bash
+# NUC37
+ros2 run demo_nodes_cpp talker
+```
+Run subscriber
+```bash
+# NUC32
+ros2 run demo_nodes_cpp listener
+```
+Result / 実行結果
+```bash
+$ ros2 run demo_nodes_cpp listener
+[INFO] [1765264820.324285384] [listener]: I heard: [Hello World: 1]
+[INFO] [1765264821.324176160] [listener]: I heard: [Hello World: 2]
+[INFO] [1765264822.324076114] [listener]: I heard: [Hello World: 3]
+[INFO] [1765264823.324220092] [listener]: I heard: [Hello World: 4]
+[INFO] [1765264824.324185182] [listener]: I heard: [Hello World: 5]
+```
+
 Run Front camera
 ```bash
 # NUC37
 ros2 launch cibo_ros2 astra_stereo_u3.launch.py camera_name:=front_camera
+```
+Run mediapipe & TF / 骨格推定
+```bash
+#NUC37
+ros2 launch cibo_ros2 front_camera.launch.py
+```
+Run rviz2 / Face Mesh を表示
+```bash
+#NUC37
+ros2 launch cibo_ros2 rviz.launch.py
+```
+Run Food & Bite tracking
+```bash
+#NUC37
+source ~/ros2_ws/src/cibo_ros2/.venv/bin/activate
+ros2 run cibo_ros2 food_detection_and_access_tracking.py
+```
+Run chewing counter
+```bash
+#NUC37
+source ~/ros2_ws/src/cibo_ros2/.venv/bin/activate
+ros2 run cibo_ros2 htm_chewing.py
 ```
 ```bash
 #NUC37
@@ -98,12 +208,15 @@ Run Top camera
 #NUC32
 ros2 launch cibo_ros2 astra_stereo_u3.launch.py camera_name:=top_camera
 ```
+Run mediapipe / 骨格推定
 ```bash
+# NUC32
+ros2 launch cibo_ros2 top_camera.launch.py 
 #NUC32
 ros2 launch cibo_ros2 top_camera.launch.py
 ```
 
-## Specify the area for skeleton estimation
+#### Specify the area for skeleton estimation / 骨格推定を行う範囲を指定する
 Specify the area for skeleton estimation / 骨格推定を行う範囲を指定する
 1. After launching the node, the OpenCV window will appear.  
     ノード起動後，OpenCVウィンドウが表示されます
@@ -112,12 +225,28 @@ Specify the area for skeleton estimation / 骨格推定を行う範囲を指定�
 3. A blue rectangle will appear while you drag, and a green rectangle will appear after you confirm.  
     ドラッグ中は青い矩形が表示され，確定後は緑の矩形で表示されます
 
+#### rosbag / カメラ画像を録画する
+```bash
+#NUC37
+cd ~/ros2_ws/rosbag
+ros2 bag record --topics /front_camera/color/camera_info /front_camera/color/image_raw/compressed /front_camera/depth/camera_info /front_camera/depth/image_raw/compressedDepth /top_camera/color/camera_info /top_camera/color/image_raw/compressed /top_camera/depth/camera_info /top_camera/depth/image_raw/compressedDepth /tf /tf_static /cibo/joint_states /cibo/robot_description
+```
+録画した内容を確認する
+```bash
+cd ~/ros2_ws/rosbag
+ros2 bag play <Pathを入力する>
+```
+Decompress node / 圧縮画像を解答する
+```bash
+ros2 launch cibo_ros2 decompress_all_camera.launch.py
+```
+
 <!-- ### View the output image.(OpenCV Image Show) / 出力画像を見る
 ```bash
 ros2 run cibo image_show_node
 ``` -->
 
-### [rosbag](https://docs.ros.org/en/humble/Tutorials/Beginner-CLI-Tools/Recording-And-Playing-Back-Data/Recording-And-Playing-Back-Data.html)
+<!-- ### [rosbag](https://docs.ros.org/en/humble/Tutorials/Beginner-CLI-Tools/Recording-And-Playing-Back-Data/Recording-And-Playing-Back-Data.html)
 If you want to record images, use rosbg. / 画像を録画したい場合は，rosbagを利用
 ```bash
 # make bag_files directory
@@ -127,7 +256,7 @@ cd ~/ros2_ws/bag_files
 Recode only specific topics / 特定のトピックのみ記録する
 ```bash
 # ros2 bag record --topics <topic_name_1> <topic_name_2> <topic_name_3>
-ros2 bag record --topics /camera_01/color/image_raw /camera_01/depth/image_raw /camera_02/color/image_raw /camera_02/depth/image_raw
+ros2 bag record --topics /front_camera/color/camera_info /front_camera/color/image_raw/compressed /front_camera/depth/camera_info /front_camera/depth/image_raw/compressedDepth /tf /tf_static /cibo/joint_states /cibo/robot_description
 ```
 Recode all topic / すべてのトピックを記録する
 ```bash
@@ -136,7 +265,7 @@ ros2 bag record -a
 ```
 > [!WARNING]
 > Due to the large data size, be mindful of your available storage space!  
-> データサイズが大きいため，ストレージの空き容量に注意！
+> データサイズが大きいため，ストレージの空き容量に注意！ -->
 
 ## 👤 Authors
 - **[iHaruruki](https://github.com/iHaruruki)** — Main author & maintainer
