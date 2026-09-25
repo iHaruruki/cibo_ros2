@@ -241,32 +241,6 @@ Decompress node / 圧縮画像を解凍する
 ros2 launch cibo_ros2 decompress_all_camera.launch.py
 ```
 
-<!-- ### View the output image.(OpenCV Image Show) / 出力画像を見る
-```bash
-ros2 run cibo image_show_node
-``` -->
-
-<!-- ### [rosbag](https://docs.ros.org/en/humble/Tutorials/Beginner-CLI-Tools/Recording-And-Playing-Back-Data/Recording-And-Playing-Back-Data.html)
-If you want to record images, use rosbg. / 画像を録画したい場合は，rosbagを利用
-```bash
-# make bag_files directory
-cd ~/ros2_ws/bag_files
-# If you have created it, use `mkdir bag_files`
-```
-Recode only specific topics / 特定のトピックのみ記録する
-```bash
-# ros2 bag record --topics <topic_name_1> <topic_name_2> <topic_name_3>
-ros2 bag record --topics /front_camera/color/camera_info /front_camera/color/image_raw/compressed /front_camera/depth/camera_info /front_camera/depth/image_raw/compressedDepth /tf /tf_static /cibo/joint_states /cibo/robot_description
-```
-Recode all topic / すべてのトピックを記録する
-```bash
-ros2 bag record -a
-# This command is mode that record all topic.
-```
-> [!WARNING]
-> Due to the large data size, be mindful of your available storage space!  
-> データサイズが大きいため，ストレージの空き容量に注意！ -->
-
 ## 👤 Authors
 - **[iHaruruki](https://github.com/iHaruruki)** — Main author & maintainer
 
