@@ -236,9 +236,25 @@ ros2 bag play <Pathを入力する>
 ```
 
 ## rosbag2
-Decompress node / 圧縮画像を解凍する
+1. rosbag2データを再生する
+```bash
+ros2 bag play rosbag2_2026_09_15-xx_xx_xx/
+```
+2. Decompress node / 圧縮画像を解凍する
 ```bash
 ros2 launch cibo_ros2 decompress_all_camera.launch.py
+```
+3. Run mediapipe & TF / 骨格推定
+```bash
+ros2 launch cibo_ros2 front_camera.launch.py
+```
+4. Run rviz2
+```bash
+ros2 launch cibo_ros2 rviz.launch.py
+```
+5. Run mediapipe
+```bash
+ros2 launch cibo_ros2 top_camera.launch.py 
 ```
 
 ## 👤 Authors
