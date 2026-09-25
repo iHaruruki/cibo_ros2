@@ -266,7 +266,6 @@ ros2 launch cibo_ros2 rviz.launch.py
 ```bash
 ros2 launch cibo_ros2 front_camera.launch.py
 ```
-- Run mediapipe
 ```bash
 ros2 launch cibo_ros2 top_camera.launch.py 
 ```
