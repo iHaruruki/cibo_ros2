@@ -25,6 +25,7 @@ install(
     scripts/top_camera.py
     scripts/food_detection_and_access_tracking.py
     scripts/htm_chewing.py
+    scripts/imshow.py
   DESTINATION lib/${PROJECT_NAME}
 )
 
