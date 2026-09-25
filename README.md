@@ -8,7 +8,10 @@
 ## 📦 Feature
 Eating Behavior Recognition for Elderly People.
 
-## 🛠️ Setup
+<details>
+
+<summary>🛠️ Setup</summary>
+ 
 ### Setup Camera ([Astra Stereo S U3](https://store.orbbec.com/products/astra-stereo-s-u3?srsltid=AfmBOop-7Cnl_FU8fo6iytP43uBmOZTonKg5eosq_w3jRvFCeXtigKCG))
 
 Please follow link  
@@ -63,7 +66,13 @@ colcon build --symlink-install --packages-select cibo_ros2
 source install/setup.bash
 ```
 
-## 🎮 How to use
+</details>
+
+
+<details>
+
+<summary>🎮 How to use</summary>
+
 ### Cibo 1
 
 #### Checking inter-device communication connections / デバイス間通信の接続確認
@@ -235,7 +244,12 @@ cd ~/ros2_ws/rosbag
 ros2 bag play <Pathを入力する>
 ```
 
-## rosbag2
+</details>
+
+<details>
+
+<summary>rosbag2</summary>
+
 1. rosbag2データを再生する
 ```bash
 ros2 bag play rosbag2_2026_09_15-xx_xx_xx/
@@ -256,6 +270,8 @@ ros2 launch cibo_ros2 rviz.launch.py
 ```bash
 ros2 launch cibo_ros2 top_camera.launch.py 
 ```
+
+</details>
 
 ## 👤 Authors
 - **[iHaruruki](https://github.com/iHaruruki)** — Main author & maintainer
