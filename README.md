@@ -132,8 +132,7 @@ Specify the area for skeleton estimation / 骨格推定を行う範囲を指定�
 3. A blue rectangle will appear while you drag, and a green rectangle will appear after you confirm.  
     ドラッグ中は青い矩形が表示され，確定後は緑の矩形で表示されます
 
-#### rosbag2
-録画する
+rosbag2を用いて，カメラ画像を録画する
 ```bash
 #NUC36
 cd ~/ros2_ws/rosbag
@@ -214,8 +213,7 @@ Specify the area for skeleton estimation / 骨格推定を行う範囲を指定�
 3. A blue rectangle will appear while you drag, and a green rectangle will appear after you confirm.  
     ドラッグ中は青い矩形が表示され，確定後は緑の矩形で表示されます
 
-#### rosbag2
-カメラ画像を録画する
+rosbag2を用いて，カメラ画像を録画する
 ```bash
 #NUC37
 cd ~/ros2_ws/rosbag
@@ -227,8 +225,8 @@ cd ~/ros2_ws/rosbag
 ros2 bag play <Pathを入力する>
 ```
 
-### rosbag2
-Decompress node / 圧縮画像を回答する
+## rosbag2
+Decompress node / 圧縮画像を解凍する
 ```bash
 ros2 launch cibo_ros2 decompress_all_camera.launch.py
 ```
